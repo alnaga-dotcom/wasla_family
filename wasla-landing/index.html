@@ -1,0 +1,742 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="وصلة — منصة زواج جاد وآمن لبناء أسر مستقرة." />
+  <title>وصلة | WASLA</title>
+
+  <link rel="icon" type="image/png" sizes="16x16" href="assets/images/favicon-16.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/images/favicon-32.png" />
+  <link rel="icon" type="image/png" sizes="48x48" href="assets/images/favicon-48.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="assets/images/apple-touch-icon.png" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Inter:wght@500;600;700;800&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="css/variables.css" />
+  <link rel="stylesheet" href="css/reset.css" />
+  <link rel="stylesheet" href="css/main.css" />
+  <link rel="stylesheet" href="css/responsive.css" />
+</head>
+<body>
+  <div class="scroll-progress" aria-hidden="true"><span></span></div>
+  <header class="site-header" id="top">
+    <div class="container header-inner">
+      <a class="brand" href="#top" aria-label="وصلة — الصفحة الرئيسية">
+        <img class="brand-logo" src="assets/images/Wasla_Logo_Horizontal.png" alt="وصلة WASLA" />
+      </a>
+
+      <button class="nav-toggle" type="button" aria-label="فتح القائمة" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+
+      <nav class="main-nav" aria-label="التنقل الرئيسي">
+        <a class="active" href="#hero">الرئيسية</a>
+        <a href="#why">لماذا وصلة</a>
+        <a href="#how">كيف تعمل</a>
+        <a href="#stories">قصص النجاح</a>
+        <a href="#members">الأعضاء</a>
+        <a href="#plans">العضوية</a>
+        <a href="#security">الأمان</a>
+        <a href="#faq">الأسئلة الشائعة</a>
+      </nav>
+
+      <div class="header-actions">
+        <a class="btn btn-outline data-app-link" href="http://127.0.0.1:8081">تسجيل الدخول</a>
+        <a class="btn btn-gold data-app-link" href="http://127.0.0.1:8081">ابدأ الآن</a>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero" id="hero">
+      <div class="hero-media" aria-hidden="true"></div>
+      <div class="hero-overlay" aria-hidden="true"></div>
+
+      <div class="container hero-content">
+        <span class="eyebrow hero-eyebrow reveal">منصة زواج جاد وآمن</span>
+        <h1 class="hero-title reveal">نربط القلوب<br><em>لنبني أسرًا مستقرة</em></h1>
+        <p class="hero-desc reveal">
+          تجربة راقية تحترم الخصوصية، وتجمع بين التحقق، التوافق الذكي،
+          والتواصل الآمن.
+        </p>
+
+        <div class="hero-actions reveal">
+          <a class="btn btn-gold btn-large data-app-link" href="http://127.0.0.1:8081">ابدأ رحلتك الآن</a>
+          <a class="btn btn-ghost btn-large" href="#how">اكتشف كيف تعمل وصلة</a>
+        </div>
+
+        <div class="hero-stats" aria-label="إحصائيات وصلة" id="hero-stats">
+          <div class="reveal"><strong class="stat-counter" id="stat-active" data-count="0" data-suffix="">٠</strong><span>عضو نشط</span></div>
+          <div class="reveal"><strong class="stat-counter" id="stat-matches" data-count="0" data-suffix="">٠</strong><span>توافق متبادل</span></div>
+          <div class="reveal"><strong class="stat-counter" id="stat-verified" data-count="0" data-suffix="">٠</strong><span>عضو موثّق</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="trust-ribbon" aria-label="مؤشرات الثقة">
+      <div class="container trust-ribbon-grid">
+        <div class="trust-item reveal"><span class="trust-icon">✓</span><div><strong>أعضاء موثّقون</strong><small>تحقق متعدد المستويات</small></div></div>
+        <div class="trust-item reveal"><span class="trust-icon">◆</span><div><strong>خصوصية محمية</strong><small>تحكم واضح في الظهور</small></div></div>
+        <div class="trust-item reveal"><span class="trust-icon">⌁</span><div><strong>تواصل آمن</strong><small>حظر وإبلاغ ومراجعة</small></div></div>
+        <div class="trust-item reveal"><span class="trust-icon">☆</span><div><strong>تجربة عائلية</strong><small>مصممة للزواج الجاد</small></div></div>
+      </div>
+    </section>
+
+    <section class="section section-light" id="why">
+      <div class="container">
+        <header class="section-heading dark reveal">
+          <span class="eyebrow">الثقة تبدأ من التفاصيل</span>
+          <h2>لماذا وصلة؟</h2>
+          <div class="heading-mark"><span></span><i></i><span></span></div>
+        </header>
+
+        <div class="feature-grid">
+          <article class="feature-card reveal" tabindex="0">
+            <div class="icon-shell">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 5 6v5c0 5 3.4 8.3 7 10 3.6-1.7 7-5 7-10V6l-7-3Z"/><path d="m9 12 2 2 4-4"/></svg>
+            </div>
+            <h3>خصوصية وأمان</h3>
+            <p>حماية متقدمة ومرونة كاملة في التحكم بمن يرى بياناتك.</p>
+          </article>
+
+          <article class="feature-card reveal" tabindex="0">
+            <div class="icon-shell">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><path d="m9.5 12 1.7 1.7 3.8-4"/></svg>
+            </div>
+            <h3>توافق أدق</h3>
+            <p>اقتراحات تعتمد على القيم والأهداف والتوافق الحقيقي.</p>
+          </article>
+
+          <article class="feature-card reveal" tabindex="0">
+            <div class="icon-shell">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="9" r="3"/><circle cx="16" cy="9" r="3"/><path d="M3 20c.5-4 2.5-6 5-6s4.5 2 5 6M11 20c.5-4 2.5-6 5-6 2.2 0 4 1.6 5 4.5"/></svg>
+            </div>
+            <h3>أعضاء جادون</h3>
+            <p>مجتمع يقدّر الجدية والاحترام وبناء علاقة مستقرة.</p>
+          </article>
+
+          <article class="feature-card reveal" tabindex="0">
+            <div class="icon-shell">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 14v-2a8 8 0 0 1 16 0v2"/><path d="M4 14h3v6H5a1 1 0 0 1-1-1v-5ZM20 14h-3v6h2a1 1 0 0 0 1-1v-5Z"/><path d="M17 20c-1 1-2.5 1.5-5 1.5"/></svg>
+            </div>
+            <h3>دعم ومتابعة</h3>
+            <p>مساندة واضحة في كل مرحلة من رحلتك داخل المنصة.</p>
+          </article>
+
+          <article class="feature-card reveal" tabindex="0">
+            <div class="icon-shell">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 11c0 5.6-7 10-7 10Z"/></svg>
+            </div>
+            <h3>قيمنا أولًا</h3>
+            <p>الاحترام والثقة والالتزام في قلب كل تجربة وتواصل.</p>
+          </article>
+
+          <article class="feature-card reveal" tabindex="0">
+            <div class="icon-shell">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 9 4 3 4-7 4 7 4-3-2 10H6L4 9Z"/><path d="M7 22h10"/></svg>
+            </div>
+            <h3>تجربة راقية</h3>
+            <p>تصميم هادئ وخطوات واضحة تضع الجدية والراحة أولًا.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section promise-section" id="promise">
+      <div class="container promise-layout">
+        <div class="promise-copy reveal">
+          <span class="eyebrow">وعد وصلة</span>
+          <h2>لا نبيع الأمل...<br><em>بل نبني الثقة</em></h2>
+          <p>كل قرار في وصلة يبدأ من سؤال واحد: هل يجعل تجربة الزواج الجاد أكثر أمانًا ووضوحًا واحترامًا؟</p>
+          <a class="text-link" href="#security">اكتشف معايير الأمان <span>←</span></a>
+        </div>
+        <div class="promise-grid">
+          <article class="promise-card reveal"><span>٠١</span><h3>الخصوصية أولًا</h3><p>إعدادات تحكم واضحة دون تعقيد.</p></article>
+          <article class="promise-card reveal"><span>٠٢</span><h3>الجدية معيار أساسي</h3><p>تجربة مصممة للباحثين عن الاستقرار.</p></article>
+          <article class="promise-card reveal"><span>٠٣</span><h3>تحقق حقيقي</h3><p>طبقات ثقة متدرجة وليست شارة شكلية.</p></article>
+          <article class="promise-card reveal"><span>٠٤</span><h3>التوافق بالقيم</h3><p>ننظر لما يصنع علاقة قابلة للاستمرار.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section-wine" id="how">
+      <div class="container">
+        <header class="section-heading reveal">
+          <span class="eyebrow">أربع خطوات واضحة</span>
+          <h2>كيف تعمل وصلة؟</h2>
+          <div class="heading-mark"><span></span><i></i><span></span></div>
+        </header>
+
+        <div class="steps" aria-label="خطوات استخدام وصلة">
+          <div class="steps-line" aria-hidden="true"></div>
+
+          <article class="step-card reveal">
+            <span class="step-number">١</span>
+            <div class="step-icon">
+              <svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 20c.5-4 2.5-6 6-6s5.5 2 6 6"/><path d="M18 8v6M15 11h6"/></svg>
+            </div>
+            <h3>أنشئ حسابك</h3>
+            <p>ابدأ ببياناتك الأساسية وابنِ ملفك بهدوء ووضوح.</p>
+          </article>
+
+          <article class="step-card reveal">
+            <span class="step-number">٢</span>
+            <div class="step-icon">
+              <svg viewBox="0 0 24 24"><path d="M12 3 5 6v5c0 5 3.4 8.3 7 10 3.6-1.7 7-5 7-10V6l-7-3Z"/><path d="m9 12 2 2 4-4"/></svg>
+            </div>
+            <h3>تحقق من هويتك</h3>
+            <p>نرفع مستوى الثقة عبر خطوات تحقق واضحة وآمنة.</p>
+          </article>
+
+          <article class="step-card reveal">
+            <span class="step-number">٣</span>
+            <div class="step-icon">
+              <svg viewBox="0 0 24 24"><circle cx="7" cy="10" r="3"/><circle cx="17" cy="10" r="3"/><path d="M2 21c.5-4 2.2-6 5-6M22 21c-.5-4-2.2-6-5-6"/><path d="m12 8 2 2-2 2-2-2 2-2Z"/></svg>
+            </div>
+            <h3>احصل على أفضل التوافقات</h3>
+            <p>اقتراحات ذكية توازن بين القيم والتفضيلات والأهداف.</p>
+          </article>
+
+          <article class="step-card reveal">
+            <span class="step-number">٤</span>
+            <div class="step-icon">
+              <svg viewBox="0 0 24 24"><path d="M4 5h12v9H8l-4 4V5Z"/><path d="M14 10h6v8l-3-2h-3"/><path d="M17 4v3M15.5 5.5h3"/></svg>
+            </div>
+            <h3>تواصل بأمان</h3>
+            <p>ابدأ حوارًا محترمًا داخل بيئة تحمي الخصوصية.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section journey-section" id="journey">
+      <div class="container">
+        <header class="section-heading dark reveal">
+          <span class="eyebrow">رحلة تتقدم بوضوح</span>
+          <h2>من الملف إلى اللقاء الجاد</h2>
+          <div class="heading-mark"><span></span><i></i><span></span></div>
+        </header>
+        <div class="journey-track">
+          <div class="journey-progress" aria-hidden="true"><span></span></div>
+          <article class="journey-step reveal"><b>٠١</b><h3>ملف واضح</h3><p>بيانات تعكس ما تبحث عنه فعلًا.</p></article>
+          <article class="journey-step reveal"><b>٠٢</b><h3>تحقق وثقة</h3><p>خطوات تقلل الغموض وترفع الجدية.</p></article>
+          <article class="journey-step reveal"><b>٠٣</b><h3>توافق مدروس</h3><p>قيم وأهداف وتفضيلات في صورة واحدة.</p></article>
+          <article class="journey-step reveal"><b>٠٤</b><h3>حوار آمن</h3><p>تواصل محترم داخل بيئة محمية.</p></article>
+          <article class="journey-step reveal"><b>٠٥</b><h3>خطوة عائلية</h3><p>الانتقال الجاد في الوقت المناسب.</p></article>
+        </div>
+      </div>
+    </section>
+<section class="section section-light" id="stories">
+      <div class="container">
+        <header class="section-heading dark reveal">
+          <span class="eyebrow">تجارب حقيقية بدأت بثقة</span>
+          <h2>قصص النجاح</h2>
+          <div class="heading-mark"><span></span><i></i><span></span></div>
+        </header>
+
+        <div class="story-grid">
+          <article class="story-card reveal">
+            <div class="story-photo">
+              <img src="assets/images/stories/story-ahmed-selma.jpg" alt="أحمد وسلمى" loading="lazy">
+            </div>
+            <div class="story-content">
+              <span class="story-mark">“</span>
+              <p>بدأنا بخطوات واضحة ومحترمة، وكان التوافق في القيم هو أهم نقطة جمعتنا.</p>
+              <div class="story-name"><strong>أحمد وسلمى</strong><span class="verified-badge">موثّق</span></div>
+              <small>القاهرة</small>
+            </div>
+          </article>
+
+          <article class="story-card reveal">
+            <div class="story-photo">
+              <img src="assets/images/stories/story-youssef-mariam.jpg" alt="يوسف ومريم" loading="lazy">
+            </div>
+            <div class="story-content">
+              <span class="story-mark">“</span>
+              <p>شعرنا منذ البداية أن المنصة جادة وتحترم الخصوصية، وهذا صنع فرقًا كبيرًا.</p>
+              <div class="story-name"><strong>يوسف ومريم</strong><span class="verified-badge">موثّق</span></div>
+              <small>الإسكندرية</small>
+            </div>
+          </article>
+
+          <article class="story-card reveal">
+            <div class="story-photo">
+              <img src="assets/images/stories/story-omar-noor.jpg" alt="عمر ونور" loading="lazy">
+            </div>
+            <div class="story-content">
+              <span class="story-mark">“</span>
+              <p>الاقتراحات كانت أقرب لما نبحث عنه فعلاً، وليس مجرد تشابه سطحي.</p>
+              <div class="story-name"><strong>عمر ونور</strong><span class="verified-badge">موثّق</span></div>
+              <small>المنصورة</small>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section-dark" id="plans">
+      <div class="container">
+        <header class="section-heading reveal">
+          <span class="eyebrow">اختر التجربة المناسبة لك</span>
+          <h2>خطط العضوية</h2>
+          <div class="heading-mark"><span></span><i></i><span></span></div>
+        </header>
+
+        <div class="plans-grid" id="plans-grid">
+          <article class="plan-card reveal">
+            <span class="plan-label">عرض تقديمي</span>
+            <h3>البداية</h3>
+            <div class="plan-price"><strong>٠</strong><span>جنيه</span><del>١٩٩</del></div>
+            <ul>
+              <li>إنشاء الملف الشخصي</li>
+              <li>استقبال اقتراحات محدودة</li>
+              <li>إعدادات الخصوصية الأساسية</li>
+            </ul>
+            <a class="btn btn-outline" href="#" data-open="register">ابدأ مجانًا</a>
+          </article>
+
+          <article class="plan-card featured reveal">
+            <span class="plan-badge">الأكثر اختيارًا</span>
+            <span class="plan-label">مميز</span>
+            <h3>تجربة وصلة الكاملة</h3>
+            <div class="plan-price"><strong>٢٩٩</strong><span>جنيه / شهر</span><del>٥٩٩</del></div>
+            <ul>
+              <li>اقتراحات توافق متقدمة</li>
+              <li>تواصل موسّع وآمن</li>
+              <li>ظهور أفضل للملف</li>
+              <li>دعم أسرع</li>
+            </ul>
+            <a class="btn btn-gold" href="#" data-open="register">اختر الخطة المميزة</a>
+          </article>
+
+          <article class="plan-card reveal">
+            <span class="plan-label">٣ أشهر</span>
+            <h3>اشتراك ٣ أشهر</h3>
+            <div class="plan-price"><strong>٤٩٩</strong><span>جنيه / ٣ أشهر</span><del>٩٩٩</del></div>
+            <ul>
+              <li>كل مزايا الخطة المميزة</li>
+              <li>التزام واضح بثلاثة أشهر</li>
+              <li>أولوية في الدعم</li>
+            </ul>
+            <a class="btn btn-outline" href="#" data-open="register">اشترك ٣ أشهر</a>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section-wine" id="security">
+      <div class="container security-layout">
+        <div class="security-visual reveal" aria-hidden="true">
+          <div class="shield-orbit">
+            <div class="shield-core">
+              <svg viewBox="0 0 24 24"><path d="M12 3 5 6v5c0 5 3.4 8.3 7 10 3.6-1.7 7-5 7-10V6l-7-3Z"/><path d="m9 12 2 2 4-4"/></svg>
+            </div>
+            <span class="orbit-dot dot-one"></span>
+            <span class="orbit-dot dot-two"></span>
+            <span class="orbit-dot dot-three"></span>
+          </div>
+        </div>
+
+        <div class="security-copy reveal">
+          <span class="eyebrow">الأمان قبل كل شيء</span>
+          <h2>خصوصيتك وثقتك في قلب التجربة</h2>
+          <p>نصمم كل خطوة داخل وصلة لتقليل المخاطر، ورفع الثقة، ومنحك تحكمًا واضحًا في بياناتك وتواصلك.</p>
+
+          <div class="security-points">
+            <div><span>٠١</span><p><strong>التحقق من الهوية</strong><br>خطوات تحقق واضحة ومتدرجة.</p></div>
+            <div><span>٠٢</span><p><strong>تحكم كامل في الخصوصية</strong><br>أنت تحدد من يرى بياناتك وصورك.</p></div>
+            <div><span>٠٣</span><p><strong>الإبلاغ والحظر</strong><br>أدوات مباشرة وسريعة لحماية تجربتك.</p></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section-dark" id="members">
+      <div class="container">
+        <header class="section-heading reveal">
+          <span class="eyebrow">من مجتمع وصلة</span>
+          <h2>أعضاء مميزون</h2>
+          <p>نماذج توضيحية بالطريقة نفسها التي ستُعرض بها الملفات الحقيقية في المنصة — أسماء مستعارة وصور رمزية، حفاظًا على خصوصية الجميع.</p>
+          <div class="heading-mark"><span></span><i></i><span></span></div>
+        </header>
+
+        <div class="members-grid">
+          <article class="member-card reveal">
+            <div class="member-avatar"><span>مح</span></div>
+            <div class="member-head">
+              <h3>محمد أ.</h3>
+              <span class="verified-badge">موثّق</span>
+            </div>
+            <div class="member-meta">٣٤ عامًا · القاهرة · مهندس برمجيات</div>
+            <p>أبحث عن شريكة تجمع بين الهدوء والطموح، وقيم العائلة أولًا.</p>
+            <div class="member-tags"><span>جاد للزواج</span><span>تعليم عالٍ</span><span>خصوصية محترمة</span></div>
+          </article>
+
+          <article class="member-card reveal">
+            <div class="member-avatar"><span>سا</span></div>
+            <div class="member-head">
+              <h3>سارة م.</h3>
+              <span class="verified-badge">موثّق</span>
+            </div>
+            <div class="member-meta">٢٩ عامًا · الجيزة · معمارية</div>
+            <p>قيم عائلية وأهداف واضحة، وأؤمن أن الحوار الصريح أساس الثقة.</p>
+            <div class="member-tags"><span>قيم عائلية</span><span>طموحة</span><span>توافق عالٍ</span></div>
+          </article>
+
+          <article class="member-card reveal">
+            <div class="member-avatar"><span>يو</span></div>
+            <div class="member-head">
+              <h3>يوسف ر.</h3>
+              <span class="verified-badge">موثّق</span>
+            </div>
+            <div class="member-meta">٣١ عامًا · الإسكندرية · طبيب أسنان</div>
+            <p>أرى أن الزواج الناجح يبدأ باحترام متبادل ووضوح في الأهداف.</p>
+            <div class="member-tags"><span>مستقر</span><span>جاد للزواج</span><span>التزام عائلي</span></div>
+          </article>
+        </div>
+
+        <div class="latest-head">
+          <span class="latest-title">أحدث الأعضاء</span>
+          <span class="latest-note">انضموا حديثًا إلى مجتمع وصلة</span>
+        </div>
+        <div class="latest-members">
+          <div class="latest-member reveal"><span>ما</span><div><strong>مازن ح.</strong><small>قبل ٣ ساعات · الدقهلية</small></div></div>
+          <div class="latest-member reveal"><span>نا</span><div><strong>نورا ف.</strong><small>قبل يوم · القاهرة</small></div></div>
+          <div class="latest-member reveal"><span>كر</span><div><strong>كريم ش.</strong><small>قبل يومين · أسيوط</small></div></div>
+          <div class="latest-member reveal"><span>ها</span><div><strong>هالة ع.</strong><small>قبل ٤ أيام · المنصورة</small></div></div>
+          <div class="latest-member reveal"><span>أم</span><div><strong>أمير ل.</strong><small>قبل أسبوع · المنوفية</small></div></div>
+          <div class="latest-member reveal"><span>رن</span><div><strong>رنا ط.</strong><small>قبل أسبوعين · الإسكندرية</small></div></div>
+        </div>
+
+        <p class="members-note">ملفات الأعضاء أعلاه تجريبية لأغراض التوضيح فقط، ولا تمثل أشخاصًا حقيقيين.</p>
+      </div>
+    </section>
+
+    <section class="section section-light" id="faq">
+      <div class="container">
+        <header class="section-heading dark reveal">
+          <span class="eyebrow">إجابات واضحة قبل أن تبدأ</span>
+          <h2>الأسئلة الشائعة</h2>
+          <div class="heading-mark"><span></span><i></i><span></span></div>
+        </header>
+
+        <div class="faq-list">
+          <details class="faq-item reveal" open>
+            <summary>هل وصلة منصة تعارف أم زواج جاد؟</summary>
+            <p>وصلة منصة مخصصة للزواج الجاد، وتضع الثقة والخصوصية والتوافق الحقيقي في مقدمة التجربة.</p>
+          </details>
+
+          <details class="faq-item reveal">
+            <summary>كيف يتم التحقق من الأعضاء؟</summary>
+            <p>تستخدم المنصة خطوات تحقق تدريجية وفق سياسة واضحة، مع مراجعة الحالات التي تحتاج تدقيقًا إضافيًا.</p>
+          </details>
+
+          <details class="faq-item reveal">
+            <summary>هل يمكنني التحكم في ظهور صوري وبياناتي؟</summary>
+            <p>نعم. توفر وصلة إعدادات خصوصية تساعدك على التحكم في عرض المعلومات والصور وفق القواعد المطبقة.</p>
+          </details>
+
+          <details class="faq-item reveal">
+            <summary>هل التواصل داخل المنصة آمن؟</summary>
+            <p>التواصل يتم داخل بيئة مصممة للخصوصية مع إمكانات الحظر والإبلاغ وإدارة المحادثات.</p>
+          </details>
+
+          <details class="faq-item reveal">
+            <summary>كيف تعمل اقتراحات التوافق في وصلة؟</summary>
+            <p>تعتمد الاقتراحات على المعلومات والتفضيلات والقيم التي يحددها المستخدم، مع تطبيق قواعد الأهلية والخصوصية المعتمدة داخل المنصة.</p>
+          </details>
+
+          <details class="faq-item reveal">
+            <summary>هل يمكنني إيقاف ظهور ملفي مؤقتًا؟</summary>
+            <p>نعم. يمكنك إخفاء ملفك مؤقتًا وفق إعدادات الحساب، ثم إعادة تفعيله لاحقًا دون إنشاء حساب جديد.</p>
+          </details>
+
+          <details class="faq-item reveal">
+            <summary>هل بياناتي محمية فعليًا؟</summary>
+            <p>تعتمد وصلة على تقليل جمع البيانات إلى الحد الضروري، مع حماية نقلها وتخزينها وتطبيق مبدأ خصوصية صارم في كل ميزة.</p>
+          </details>
+
+          <details class="faq-item reveal">
+            <summary>هل توجد رسوم خفية؟</summary>
+            <p>لا. الأسعار والمزايا واضحة قبل أي عملية شراء، ولا تحدث أي خصومات أو تجديدات تلقائية دون إشعار مسبق وموافقة واضحة.</p>
+          </details>
+
+          <details class="faq-item reveal">
+            <summary>هل يمكن حذف حسابي نهائيًا؟</summary>
+            <p>نعم. يمكنك حذف حسابك وبياناتك نهائيًا من إعدادات الحساب، وفق شروط الحذف الموضحة في سياسة الخصوصية.</p>
+          </details>
+
+          <details class="faq-item reveal">
+            <summary>هل يمكن للعائلة المشاركة في التجربة؟</summary>
+            <p>نعم. توفر وصلة خيارات إدارة ومتابعة عائلية تمنح الأهل رؤية أو دورًا مساندًا وفق ما تحدده أنت بالكامل.</p>
+          </details>
+
+          <details class="faq-item reveal">
+            <summary>كيف أتواصل مع الدعم عند الحاجة؟</summary>
+            <p>يمكنك التواصل مع فريق الدعم مباشرة داخل المنصة، مع أولوية استجابة للمشتركين وأوقات واضحة لحل الاستفسارات.</p>
+          </details>
+
+          <details class="faq-item reveal">
+            <summary>هل يدعم وصلة الزواج الثاني؟</summary>
+            <p>نعم، وبشفافية كاملة. يمكن للرجل المتزوج البحث بوضوح عن زوجة إضافية، وتُطبق تفضيلات المرأة تلقائيًا: من لا تقبل التعدد لا تظهر لها هذه الاقتراحات.</p>
+          </details>
+
+          <details class="faq-item reveal">
+            <summary>هل يوجد إفصاح عن الحالات الطبية أو موانع الإنجاب؟</summary>
+            <p>الإفصاح الطبي خاص ومحمي، ولا يُستخدم في المطابقة ولا يظهر في الملف العام. عند بدء حوار متبادل يمكنك الكشف عنه طوعًا وبخصوصية لمن اخترته فقط.</p>
+          </details>
+
+          <details class="faq-item reveal">
+            <summary>هل يمكنني البحث بنفسي أم الاقتراحات فقط؟</summary>
+            <p>البحث اليدوي والمطابقة يُفتحان معًا عند اكتمال المجموعة الأولى من الأعضاء الموثّقين، لنضمن فرصًا حقيقية من اليوم الأول. وحتى ذلك الحين يُجمع ملفك ويُتحقق منه يدويًا وتُحفظ تفضيلاتك، لتكون جاهزًا لحظة الافتتاح.</p>
+          </details>
+
+          <details class="faq-item reveal">
+            <summary>هل يمكنني استبعاد من لديهم أطفال؟</summary>
+            <p>نعم. قبول شريك لديه أطفال أو العيش مع أطفاله هو سؤال تفضيل واضح، وإجابتك "لا" تعني استبعادًا تلقائيًا من هذه الاقتراحات.</p>
+          </details>
+
+          <details class="faq-item reveal">
+            <summary>هل التحقق من الهوية مدفوع؟</summary>
+            <p>لا. التحقق اختياري ومجاني دائمًا، ويرفع درجة الثقة وترتيب ملفك واكتماله دون أي رسوم.</p>
+          </details>
+
+          <details class="faq-item reveal">
+            <summary>ماذا يحدث بعد إبلاغي عن مستخدم؟</summary>
+            <p>يُستقبل البلاغ فورًا، وتُعالج الحالة وفق قواعد المراجعة والإشراف، وقد تترتب عواقب على حساب المخالف دون الكشف عن بياناتك.</p>
+          </details>
+
+          <details class="faq-item reveal">
+            <summary>ما طرق الدفع المتاحة؟</summary>
+            <p>يتم الدفع عبر محافظ الهاتف المصرية المتاحة مثل Vodafone Cash وOrange Cash وEtisalat Cash وغيرها، بخطوات واضحة وآمنة.</p>
+          </details>
+
+          <details class="faq-item reveal">
+            <summary>هل العرض التقديمي محدود؟</summary>
+            <p>العرض التقديمي مجاني لكن بمدة محددة وحدود يومية واضحة (مثل عدد الإعجابات والرسائل)، وتنتقل تلقائيًا للنموذج المدفوع عند انتهائه دون رسوم خفية.</p>
+          </details>
+        </div>
+      </div>
+    </section>
+
+
+
+    <section class="section fit-section" id="fit">
+      <div class="container fit-layout">
+        <div class="fit-copy reveal">
+          <span class="eyebrow">هل وصلة مناسبة لك؟</span>
+          <h2>إذا كنت تبحث عن علاقة جادة... فأنت في المكان الصحيح</h2>
+          <p>اختر ما ينطبق عليك، وشاهد كيف صُممت وصلة لتناسب توقعاتك.</p>
+        </div>
+        <div class="fit-checklist reveal" role="group" aria-label="معايير مناسبة وصلة لك">
+          <label><input type="checkbox" checked><span>أبحث عن زواج جاد</span><i>✓</i></label>
+          <label><input type="checkbox"><span>أقدّر الخصوصية والوضوح</span><i>✓</i></label>
+          <label><input type="checkbox"><span>أؤمن ببناء أسرة مستقرة</span><i>✓</i></label>
+          <label><input type="checkbox"><span>أريد تعارفًا محترمًا وآمنًا</span><i>✓</i></label>
+          <div class="fit-result" aria-live="polite"><strong>وصلة صُممت من أجلك</strong><span>أكمل اختيارك لتأكيد التوافق مع فلسفة المنصة.</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section final-cta" id="register">
+      <div class="container final-cta-inner reveal">
+        <div>
+          <span class="eyebrow">الخطوة الأولى تبدأ الآن</span>
+          <h2>ابدأ رحلتك نحو أسرة مستقرة</h2>
+          <p>أنشئ حسابك، أكمل ملفك، وابدأ تجربة أكثر جدية ووضوحًا.</p>
+        </div>
+        <a class="btn btn-gold btn-large" href="#" data-open="register">سجل الآن مجانًا</a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-grid">
+      <div class="footer-about">
+        <div class="footer-brand">
+          <img src="assets/images/Wasla_Logo_Horizontal.png" alt="وصلة">
+        </div>
+        <p>منصة زواج جاد وآمن تساعدك على بناء علاقة مستقرة على أساس الثقة والتوافق.</p>
+        <div class="footer-social">
+          <a href="#" aria-label="فيسبوك"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg></a>
+          <a href="#" aria-label="إنستغرام"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1.2"/></svg></a>
+          <a href="#" aria-label="إكس"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 4l16 16M20 4L4 20"/></svg></a>
+          <a href="#" aria-label="واتساب"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3a9 9 0 0 0-7.8 13.5L3 21l4.6-1.2A9 9 0 1 0 12 3z"/><path d="M8.7 9.4c2.6 3 5 3.6 6.6 3.6"/></svg></a>
+        </div>
+      </div>
+
+      <div>
+        <h3>روابط سريعة</h3>
+        <a href="#how">كيف تعمل</a>
+        <a href="#why">لماذا وصلة</a>
+        <a href="#plans">العضوية</a>
+      </div>
+
+      <div>
+        <h3>المساعدة</h3>
+        <a href="#faq">الأسئلة الشائعة</a>
+        <a href="#security">الأمان والخصوصية</a>
+        <a href="#top">تواصل معنا</a>
+      </div>
+
+      <div>
+        <h3>ابدأ بسرعة</h3>
+        <div class="footer-quick">
+          <div class="qr-placeholder" aria-label="رمز QR تجريبي"><span></span></div>
+          <div><strong>افتح وصلة على هاتفك</strong><small>امسح الرمز أو ابدأ التسجيل من الموقع.</small><a class="footer-mini-cta" href="#" data-open="register">إنشاء حساب</a></div>
+        </div>
+        <form class="newsletter">
+          <input type="email" placeholder="بريدك الإلكتروني" aria-label="البريد الإلكتروني" />
+          <button type="submit">اشتراك</button>
+        </form>
+      </div>
+    </div>
+
+    <div class="container footer-bottom">
+      <small>© ٢٠٢٦ WASLA. جميع الحقوق محفوظة.</small>
+      <div><a href="#">سياسة الخصوصية</a><a href="#">شروط الاستخدام</a></div>
+    </div>
+  </footer>
+
+  <div class="auth-modal" id="authModal" role="dialog" aria-modal="true" aria-labelledby="authModalTitle" hidden>
+    <div class="auth-modal-backdrop" data-close></div>
+    <div class="auth-modal-panel">
+      <button class="auth-modal-close" type="button" data-close aria-label="إغلاق">×</button>
+
+      <div class="auth-tabs" role="tablist" aria-label="تسجيل">
+        <button class="auth-tab is-active" type="button" role="tab" data-tab="login" aria-selected="true">تسجيل الدخول</button>
+        <button class="auth-tab" type="button" role="tab" data-tab="register" aria-selected="false">إنشاء حساب</button>
+      </div>
+
+      <form class="auth-form" data-form="login" novalidate>
+        <h3 id="authModalTitle">مرحبًا بعودتك</h3>
+        <label>
+          <span>البريد الإلكتروني أو رقم الهاتف</span>
+          <input type="text" name="identifier" required autocomplete="username">
+        </label>
+        <label>
+          <span>كلمة المرور</span>
+          <input type="password" name="password" required autocomplete="current-password">
+        </label>
+        <button class="btn btn-gold btn-block" type="submit">تسجيل الدخول</button>
+        <p class="auth-hint">المنصة في مرحلة الإطلاق قريبًا — تابعنا على شبكات التواصل.</p>
+      </form>
+
+      <form class="auth-form" data-form="register" hidden novalidate>
+        <h3>أنشئ حسابك</h3>
+        <label>
+          <span>الاسم الكامل</span>
+          <input type="text" name="name" required autocomplete="name">
+        </label>
+        <label>
+          <span>البريد الإلكتروني أو رقم الهاتف</span>
+          <input type="text" name="identifier" required autocomplete="username">
+        </label>
+        <label>
+          <span>كلمة المرور</span>
+          <input type="password" name="password" required minlength="8" autocomplete="new-password">
+        </label>
+        <button class="btn btn-gold btn-block" type="submit">ابدأ الآن</button>
+        <p class="auth-hint">المنصة في مرحلة الإطلاق قريبًا — سيُضاف بريدك إلى قائمة الانتظار.</p>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    let API_BASE = 'http://127.0.0.1:4000';
+    let APP_URL = 'http://127.0.0.1:8081';
+    async function loadConfig() {
+      try {
+        const res = await fetch('/config.json');
+        if (res.ok) {
+          const cfg = await res.json();
+          if (cfg.apiBase) API_BASE = cfg.apiBase;
+          if (cfg.appUrl) APP_URL = cfg.appUrl;
+        }
+      } catch (e) { /* fall back to defaults */ }
+    }
+    function toArabicDigits(value) {
+      return String(value).replace(/[0-9]/g, (digit) => '٠١٢٣٤٥٦٧٨٩'[digit]);
+    }
+    function animateCounter(el, target) {
+      const duration = 1500;
+      const start = performance.now();
+      function tick(now) {
+        const progress = Math.min((now - start) / duration, 1);
+        const eased = 1 - Math.pow(1 - progress, 3);
+        el.textContent = toArabicDigits(Math.round(target * eased));
+        if (progress < 1) requestAnimationFrame(tick);
+      }
+      requestAnimationFrame(tick);
+    }
+    async function loadStats() {
+      try {
+        const res = await fetch(API_BASE + '/api/public/stats');
+        if (!res.ok) return;
+        const data = await res.json();
+        const map = {
+          'stat-active': data.activeMembers,
+          'stat-matches': data.matches,
+          'stat-verified': data.verifiedMembers,
+        };
+        for (const [id, value] of Object.entries(map)) {
+          const el = document.getElementById(id);
+          if (el && Number.isFinite(value)) animateCounter(el, value);
+        }
+      } catch (e) { console.error('stats load failed', e); }
+    }
+    async function loadPlans() {
+      try {
+        const res = await fetch(API_BASE + '/api/public/plans');
+        if (!res.ok) return;
+        const { plans } = await res.json();
+        const grid = document.getElementById('plans-grid');
+        if (!grid || !plans.length) return;
+        const labels = {
+          intro: { title: 'البداية', subtitle: 'عرض تقديمي', period: '' },
+          monthly: { title: 'تجربة وصلة الكاملة', subtitle: 'شهري', period: 'شهر' },
+          quarterly: { title: 'اشتراك ٣ أشهر', subtitle: '٣ أشهر', period: '٣ أشهر' },
+        };
+        grid.innerHTML = plans.map((p, idx) => {
+          const meta = labels[p.code] || { title: p.name, subtitle: '', period: '' };
+          const price = toArabicDigits(p.price_egp);
+          const regular = toArabicDigits(p.regular_price_egp);
+          const featured = p.code === 'monthly' ? 'featured' : '';
+          const badge = p.code === 'monthly' ? '<span class="plan-badge">الأكثر اختيارًا</span>' : '';
+          return `
+            <article class="plan-card ${featured} reveal">
+              ${badge}
+              <span class="plan-label">${meta.subtitle}</span>
+              <h3>${meta.title}</h3>
+              <div class="plan-price"><strong>${price}</strong><span>جنيه${meta.period ? ' / ' + meta.period : ''}</span><del>${regular}</del></div>
+              <ul>
+                ${p.features.map((f) => `<li>${translateFeature(f)}</li>`).join('')}
+              </ul>
+              <a class="btn ${p.code === 'monthly' ? 'btn-gold' : 'btn-outline'}" href="${APP_URL}">${p.code === 'intro' ? 'ابدأ مجانًا' : 'اختر هذه الخطة'}</a>
+            </article>
+          `;
+        }).join('');
+      } catch (e) { console.error('plans load failed', e); }
+    }
+    function translateFeature(f) {
+      const map = {
+        'unlimited_likes': 'إعجابات غير محدودة',
+        'unlimited_messages': 'رسائل غير محدودة',
+        'who_liked_you': 'معرفة من أعجب بك',
+        'share_contact': 'مشاركة معلومات التواصل',
+      };
+      return map[f] || f;
+    }
+    document.addEventListener('DOMContentLoaded', async () => {
+      await loadConfig();
+      document.querySelectorAll('a.data-app-link').forEach((a) => { a.href = APP_URL; });
+      loadStats();
+      loadPlans();
+    });
+  </script>
+  <script src="js/app.js"></script>
+</body>
+</html>

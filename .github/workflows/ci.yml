@@ -1,0 +1,81 @@
+name: Wasla CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: wasla-server
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Syntax check
+        run: |
+          node --check src/server.js
+          node --check src/config.js
+          node --check src/db.js
+          node --check src/security.js
+          node --check src/logger.js
+          node --check src/realtime.js
+          node --check src/push.js
+          node --check src/notify.js
+          node --check src/verification.js
+          node --check src/subscription.js
+          node --check src/payments/index.js
+          node --check src/payments/mock.js
+          node --check src/payments/066city.js
+          node --check src/routes/push.js
+          node --check src/routes/verification.js
+          node --check src/routes/subscriptions.js
+
+      - name: Start server and run smoke tests
+        run: |
+          node src/server.js &
+          sleep 3
+          node scripts/smoke.mjs
+          node scripts/messages-smoke.mjs
+          node scripts/account-smoke.mjs
+          node scripts/trust-smoke.mjs
+          node scripts/profile-smoke.mjs
+          node scripts/notifications-smoke.mjs
+          node scripts/search-smoke.mjs
+          node scripts/settings-smoke.mjs
+          node scripts/discovery-smoke.mjs
+          node scripts/admin-smoke.mjs
+          node scripts/moderation-smoke.mjs
+          node scripts/matching-smoke.mjs
+          node scripts/workflow-event-rule-smoke.mjs
+          node scripts/recommendation-smoke.mjs
+          node scripts/roles-smoke.mjs
+          node scripts/design-review-smoke.mjs
+          node scripts/photos-smoke.mjs
+          node scripts/security-smoke.mjs
+          node scripts/otp-send-smoke.mjs
+          node scripts/push-smoke.mjs
+          node scripts/payment-smoke.mjs
+          node scripts/verification-smoke.mjs
+          node scripts/realtime-smoke.mjs
+          # Start landing + PWA app servers and smoke-test them
+          node ../wasla-landing/scripts/serve.mjs &
+          node ../wasla-app/scripts/serve.mjs &
+          sleep 2
+          node ../wasla-app/scripts/app-smoke.mjs
+          node ../wasla-landing/scripts/landing-smoke.mjs
+          node scripts/admin-panel-smoke.mjs
+          node scripts/notifications-ui-smoke.mjs
+        env:
+          WASLA_DEV_OTP: true

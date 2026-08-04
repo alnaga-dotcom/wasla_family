@@ -1,0 +1,40 @@
+import { db, nowIso } from '../db.js';
+import { apiError } from '../validate.js';
+import { isDeleted, isInGrace } from '../account.js';
+
+function resolveSession(req) {
+  const header = req.headers.authorization || '';
+  const token = header.startsWith('Bearer ') ? header.slice(7) : null;
+  if (!token) return null;
+  return db.prepare(
+    'SELECT s.user_id, s.expires_at, u.status, u.deleted_at FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token = ?'
+  ).get(token);
+}
+
+function badSession(res, row) {
+  if (!row) return apiError(res, 401, 'INVALID_SESSION', 'الجلسة غير صالحة');
+  if (new Date(row.expires_at + 'Z') < new Date()) return apiError(res, 401, 'SESSION_EXPIRED', 'انتهت الجلسة — سجل الدخول مجددًا');
+  if (row.status !== 'active') return apiError(res, 403, 'ACCOUNT_NOT_ACTIVE', 'الحساب غير نشط');
+  return null;
+}
+
+export function authRequired(req, res, next) {
+  const row = resolveSession(req);
+  const err = badSession(res, row);
+  if (err) return err;
+  if (isDeleted(row)) return apiError(res, 403, 'ACCOUNT_DELETED', 'هذا الحساب قيد الحذف — يمكنك استرجاعه خلال مهلة الحذف', 'account');
+  req.userId = row.user_id;
+  next();
+}
+
+// مسارات خاصة بالحساب (استرجاع/تصدير): تسمح للمحذوف خلال المهلة
+export function authGrace(req, res, next) {
+  const row = resolveSession(req);
+  const err = badSession(res, row);
+  if (err) return err;
+  if (isDeleted(row) && !isInGrace(row.deleted_at)) {
+    return apiError(res, 410, 'ACCOUNT_PURGED', 'انتهت مهلة الحذف — لم يعد بالإمكان الاسترجاع', 'account');
+  }
+  req.userId = row.user_id;
+  next();
+}

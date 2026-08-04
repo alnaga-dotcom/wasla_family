@@ -1,0 +1,41 @@
+# Secrets — never commit
+.env
+*.env
+.env.local
+.env.production
+.env.production.local
+
+# Node
+node_modules/
+
+# Data & uploads (SQLite, photos)
+wasla-server/data/
+wasla-server/uploads/
+
+# Build artifacts
+wasla-app/www/
+wasla-app/android/app/build/
+deploy/
+
+# Android toolchain (JDK, cmdline-tools — ~1.7 GB, never commit)
+wasla-app/android-tools/
+cloudflared.exe
+
+# Android IDE/local
+wasla-app/android/.idea/
+wasla-app/android/local.properties
+*.iml
+
+# Android signing key (placeholder — replace, never commit a real keystore)
+wasla-app/android/keystore.jks
+
+# Logs
+*.log
+logs/
+*.err
+*.out
+*.tmp
+
+# OS / editor
+.DS_Store
+Thumbs.db

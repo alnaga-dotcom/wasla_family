@@ -1,0 +1,15 @@
+{
+  "name": "wasla-landing",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Wasla marketing landing page — real numbers, no member photos",
+  "scripts": {
+    "serve": "node scripts/serve.mjs",
+    "dev": "node --watch scripts/serve.mjs",
+    "test": "node scripts/landing-smoke.mjs"
+  },
+  "engines": {
+    "node": ">=22.5.0"
+  }
+}

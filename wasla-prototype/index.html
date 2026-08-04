@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>وصلة — بروتوتايب تفاعلي</title>
+  <meta name="description" content="بروتوتايب قابل للنقر لمنصة وصلة — مرحلة HTML prototype حسب وثائق Wasla.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/main.css">
+</head>
+<body>
+
+  <!-- ============ AUTH ============ -->
+  <div class="auth-wrap" id="view-login">
+    <div class="card auth-card">
+      <div class="auth-logo">وصلة <span style="color:var(--gold-antique)">✦</span></div>
+      <p class="auth-sub" data-i18n="app.subtitle">تجربة زواج جادة وآمنة — تسجيل في أقل من ٦٠ ثانية</p>
+
+      <div class="auth-tabs" role="tablist">
+        <button class="auth-tab is-active" type="button" data-atab="login" data-i18n="auth.login">تسجيل الدخول</button>
+        <button class="auth-tab" type="button" data-atab="register" data-i18n="auth.register">إنشاء حساب</button>
+      </div>
+
+      <!-- Login form -->
+      <form id="form-login" class="auth-form" novalidate>
+        <div class="field">
+          <label for="li-phone" data-i18n="auth.phone">رقم الهاتف أو البريد الإلكتروني</label>
+          <input id="li-phone" type="text" required>
+        </div>
+        <div class="field">
+          <label for="li-pass" data-i18n="auth.password">كلمة المرور</label>
+          <input id="li-pass" type="password" required>
+        </div>
+        <button class="btn btn-gold btn-block" type="submit" data-i18n="auth.loginBtn">تسجيل الدخول</button>
+        <p class="hint" data-i18n="auth.passwordHint">كلمة المرور اختيارية في هذا النموذج التجريبي.</p>
+      </form>
+
+      <!-- Register form -->
+      <form id="form-register" class="auth-form" hidden novalidate>
+        <div class="field">
+          <label for="re-name" data-i18n="auth.name">الاسم الكامل</label>
+          <input id="re-name" type="text" required>
+        </div>
+        <div class="field">
+          <label for="re-phone" data-i18n="auth.phoneRegister">رقم الهاتف — محلي أو دولي (+رمز الدولة)</label>
+          <input id="re-phone" type="text" placeholder="01xxxxxxxxx أو +9715xxxxxxx" data-i18n-placeholder="auth.phonePlaceholder" required>
+        </div>
+        <div class="field">
+          <label for="re-gender" data-i18n="auth.gender">أنت</label>
+          <select id="re-gender" required>
+            <option value="male" data-i18n="auth.genderMale">أخ أو أب أو ولي أمر — أبحث عن زوجة</option>
+            <option value="female" data-i18n="auth.genderFemale">أخت — أبحث عن زوج</option>
+          </select>
+        </div>
+        <button class="btn btn-gold btn-block" type="submit" data-i18n="auth.registerBtn">إنشاء حساب</button>
+        <p class="hint" data-i18n="auth.otpHint">تأكيد عبر رمز OTP يُرسل لرقمك (خطوة تجريبية).</p>
+      </form>
+
+      <!-- OTP step -->
+      <form id="form-otp" class="auth-form" hidden novalidate>
+        <div class="field">
+          <label for="otp-code" data-i18n="auth.otpLabel">أدخل رمز التحقق (٦ أرقام)</label>
+          <div class="otp-row"><input id="otp-code" type="text" maxlength="6" placeholder="••••••" data-i18n-placeholder="auth.otpPlaceholder"></div>
+        </div>
+        <button class="btn btn-gold btn-block" type="submit" data-i18n="auth.otpBtn">تأكيد</button>
+        <p class="hint" id="otp-hint" data-i18n="auth.otpHintDefault">الرمز يُرسل عبر OTP آمن أحادي الاستخدام (Wasla_22).</p>
+      </form>
+    </div>
+  </div>
+
+  <!-- ============ APP SHELL ============ -->
+  <div class="app-shell" id="app-shell" hidden>
+    <header class="app-bar">
+      <div class="app-brand">وصلة <span class="dot">✦</span></div>
+      <nav class="app-nav">
+        <button data-view="discovery" class="active" data-i18n="nav.discovery">الاقتراحات</button>
+        <button data-view="search" data-i18n="nav.search">البحث</button>
+        <button data-view="matches" data-i18n="nav.matches">المطابقات</button>
+        <button data-view="messages" data-i18n="nav.messages">الرسائل</button>
+      </nav>
+      <div style="display:flex;align-items:center;gap:10px">
+        <div class="notif-wrap">
+          <button class="btn-logout" id="btn-notifications" type="button" data-i18n-title="nav.notifications">🔔 <span class="notif-badge" id="notif-badge" hidden>٠</span></button>
+          <div class="notif-panel" id="notif-panel" hidden>
+            <div class="notif-head"><b data-i18n="nav.notificationsTitle">الإشعارات</b><button id="notif-read-all" type="button" data-i18n="nav.notificationsReadAll">تعليم الكل كمقروءة</button></div>
+            <div class="notif-list" id="notif-list"></div>
+          </div>
+        </div>
+        <button class="btn-logout" id="btn-lang" type="button" data-i18n="app.language">English</button>
+        <button class="btn-logout" id="btn-settings" type="button" data-i18n-title="nav.settings">⚙</button>
+        <button class="btn-logout" id="btn-logout" type="button" data-i18n="nav.logout">تسجيل خروج</button>
+      </div>
+    </header>
+    <main>
+
+      <!-- ============ ONBOARDING ============ -->
+      <section class="view" id="view-onboarding">
+        <div class="stage onboard-layout">
+          <aside class="card progress-card">
+            <div class="progress-ring" id="progress-ring"><div id="progress-num">٠٪</div></div>
+            <p style="text-align:center;margin:0;font-weight:800;color:var(--burgundy-dark)" data-i18n="onboarding.completion">اكتمال ملفك</p>
+            <p style="text-align:center;margin:6px 0 0;font-size:13px;color:var(--burgundy);opacity:.75" data-i18n="onboarding.completionHint">نسبة خاصة بك وحدك — لا يراها أحد (Wasla_05)</p>
+            <ul class="checklist" id="checklist"></ul>
+          </aside>
+
+          <div class="card group-card">
+            <div class="group-head">
+              <h2 id="group-title" data-i18n="onboarding.group1">البيانات الأساسية</h2>
+              <span class="group-tag" id="group-tag" data-i18n="onboarding.group1Tag">المستوى ١ — ضرورية</span>
+            </div>
+            <p class="group-desc" id="group-desc"></p>
+            <div class="nudge" id="group-nudge" hidden></div>
+            <form id="group-form" novalidate></form>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ DISCOVERY ============ -->
+      <section class="view" id="view-discovery">
+        <div class="stage">
+          <div class="section-head">
+            <h2 data-i18n="discovery.title">اقتراحات التوافق</h2>
+            <span class="count" id="disco-count">٠ اقتراح</span>
+          </div>
+          <div class="discovery-wrap">
+            <div class="swipe-stack" id="swipe-stack">
+              <!-- swipe cards injected by JS -->
+              <div class="swipe-undo"><button id="btn-undo" type="button" data-i18n="discovery.undo">تراجع عن آخر قرار</button></div>
+            </div>
+            <aside class="discovery-side">
+              <div class="rule-note">
+                <strong data-i18n="discovery.whyTitle">لماذا هذا الاقتراح؟</strong>
+                <p style="margin:8px 0 0;line-height:1.8" data-i18n="discovery.whyBody">تُحسب درجة التوافق بصيغ قابلة للتكوين (Wasla_28) ويُشرح كل اقتراح بسبب واضح لا يكشف بيانات محمية (Wasla_12). هذه حسابات تجريبية صراحةً (Wasla_04 §16a) — لا يمكن التفاعل معها خارج العرض.</p>
+              </div>
+              <div class="rule-note">
+                <strong data-i18n="discovery.photoTitle">مبدأ الصور</strong>
+                <p style="margin:8px 0 0;line-height:1.8" data-i18n="discovery.photoBody">صورة مصغّرة محتشمة فقط حسب مستوى الرؤية الذي يحدده صاحب الملف — داخل المنصة حصرًا، وليست على الويب المفتوح أبدًا (Wasla_05).</p>
+              </div>
+            </aside>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ SEARCH ============ -->
+      <section class="view" id="view-search">
+        <div class="stage">
+          <div class="section-head"><h2 data-i18n="search.title">بحث يدوي</h2><span class="count" id="search-count">٠ نتيجة</span></div>
+          <div class="card" style="padding:22px;margin-bottom:20px">
+            <div class="search-filters">
+              <div class="field" style="margin-bottom:12px">
+                <label for="search-q" data-i18n="search.queryLabel">ابحث (نص أولًا — بلا شبكة صور، Wasla_19)</label>
+                <input id="search-q" type="text" placeholder="مثال: القاهرة، مهندسة، ملتزم…" data-i18n-placeholder="search.queryPlaceholder">
+              </div>
+              <div class="search-filter-row">
+                <div class="field"><label for="search-city" data-i18n="search.city">المدينة</label><select id="search-city"><option value="" data-i18n="search.all">الكل</option><option>القاهرة</option><option>الجيزة</option><option>الإسكندرية</option><option>المنصورة</option><option>طنطا</option></select></div>
+                <div class="field"><label for="search-edu" data-i18n="search.education">التعليم</label><select id="search-edu"><option value="" data-i18n="search.all">الكل</option><option>ثانوية</option><option>دبلوم</option><option>بكالوريوس</option><option>ماجستير</option><option>دكتوراه</option></select></div>
+                <div class="field"><label for="search-prof" data-i18n="search.profession">المهنة</label><select id="search-prof"><option value="" data-i18n="search.all">الكل</option><option>هندسة</option><option>تعليم</option><option>طب</option><option>تجارة</option><option>محاسبة</option><option>تقنية</option></select></div>
+                <div class="field"><label for="search-rel" data-i18n="search.religiosity">الالتزام</label><select id="search-rel"><option value="" data-i18n="search.all">الكل</option><option>ملتزم</option><option>متوسط</option><option>مرن</option></select></div>
+                <div class="field"><label for="search-life" data-i18n="search.lifestyle">نمط الحياة</label><select id="search-life"><option value="" data-i18n="search.all">الكل</option><option>هادئ</option><option>منتظم</option><option>اجتماعي</option></select></div>
+                <div class="field"><label for="search-nationality" data-i18n="search.nationality">الجنسية</label><select id="search-nationality"><option value="" data-i18n="search.all">الكل</option><option>مصري</option><option>سعودي</option><option>إماراتي</option><option>كويتي</option><option>قطري</option><option>بحريني</option><option>عُماني</option><option>أردني</option><option>لبناني</option><option>سوري</option><option>عراقي</option><option>مغربي</option><option>جزائري</option><option>تونسي</option><option>ليبي</option><option>سوداني</option><option>يمني</option><option>تركي</option><option>أخرى</option></select></div>
+                <div class="field"><label for="search-age-min" data-i18n="search.ageMin">العمر من</label><input id="search-age-min" type="number" min="18" max="78" placeholder="٢٥"></div>
+                <div class="field"><label for="search-age-max" data-i18n="search.ageMax">العمر إلى</label><input id="search-age-max" type="number" min="18" max="78" placeholder="٣٥"></div>
+                <div class="field"><label for="search-height-min" data-i18n="search.heightMin">الطول من (سم)</label><input id="search-height-min" type="number" min="120" max="220" placeholder="١٧٠"></div>
+                <div class="field"><label for="search-height-max" data-i18n="search.heightMax">الطول إلى (سم)</label><input id="search-height-max" type="number" min="120" max="220" placeholder="١٩٠"></div>
+                <div class="field" style="margin-bottom:0"><button class="btn btn-gold" id="btn-search" type="button" data-i18n="search.searchBtn">بحث</button></div>
+              </div>
+            </div>
+          </div>
+          <div class="search-results" id="search-results"></div>
+        </div>
+      </section>
+
+      <!-- ============ MATCHES ============ -->
+      <section class="view" id="view-matches">
+        <div class="stage">
+          <div class="section-head">
+            <h2 data-i18n="matches.title">المطابقات المتبادلة</h2>
+            <span class="count" id="matches-count">٠</span>
+          </div>
+          <div class="matches-grid" id="matches-grid"></div>
+        </div>
+      </section>
+
+      <!-- ============ MESSAGES ============ -->
+      <section class="view" id="view-messages">
+        <div class="stage msg-layout">
+          <div class="card msg-list" id="msg-list"></div>
+          <div class="card chat-panel" id="chat-panel">
+            <div class="empty-chat" data-i18n="messages.emptyChat">اختر محادثة — تُفتح الرسائل بالإعجاب المتبادل فقط (Wasla_18)</div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+      <!-- ============ SETTINGS ============ -->
+      <section class="view" id="view-settings">
+        <div class="stage" style="max-width:720px">
+          <div class="section-head"><h2 data-i18n="settings.title">الإعدادات والخصوصية</h2></div>
+          <div class="card" style="padding:26px">
+            <h3 style="margin:0 0 16px" data-i18n="settings.photoTitle">رؤية الصور (Wasla_05 — داخل المنصة حصرًا)</h3>
+            <div class="field" id="photo-vis-field">
+              <label data-i18n="settings.photoLabel">من يستطيع رؤية صورك</label>
+              <select id="set-photo-vis" data-i18n-options="settings.photoOpt0,settings.photoOpt1,settings.photoOpt2">
+                <option data-i18n="settings.photoOpt0">المطابقات المحتملة فقط (الافتراضي)</option>
+                <option data-i18n="settings.photoOpt1">كل الأعضاء الموثّقين (L2 فأعلى)</option>
+                <option data-i18n="settings.photoOpt2">كل الأعضاء المسجلين</option>
+              </select>
+            </div>
+            <p class="hint" style="text-align:right" data-i18n="settings.photoHint">"عام" تعني داخل المنصة فقط — لا ويب مفتوح ولا فهرسة ولا حفظ أبدًا (Wasla_05).</p>
+            <h3 style="margin:22px 0 10px" data-i18n="settings.activityTitle">ظهورك ونشاطك</h3>
+            <label class="toggle-row"><span data-i18n="settings.lastSeen">إظهار آخر ظهور</span><input type="checkbox" id="set-lastseen" checked></label>
+            <label class="toggle-row"><span data-i18n="settings.pause">إيقاف مؤقت للملف</span><input type="checkbox" id="set-pause"></label>
+            <p class="hint" style="text-align:right" data-i18n="settings.pauseHint">الإيقاف المؤقت يخفي الملف ولا يلغيه؛ وتُحترم كل خياراتك هذه بلا تجاوز من أي قاعدة (Wasla_11).</p>
+            <button class="btn btn-gold btn-block" id="btn-save-settings" type="button" data-i18n="settings.save">حفظ الإعدادات</button>
+          </div>
+          <div class="card" style="padding:26px;margin-top:18px">
+            <h3 style="margin:0 0 16px" data-i18n="settings.accountTitle">بياناتك وتحكّمك فيها (Wasla_22)</h3>
+            <p class="hint" style="text-align:right" data-i18n="settings.accountHint">بياناتك ملكك: صدّرها متى شئت، واحذف حسابك بتحكم كامل مع مهلة ٣٠ يومًا للتراجع.</p>
+            <button class="btn btn-outline btn-block" id="btn-export-data" type="button" style="margin-bottom:10px" data-i18n="settings.export">⬇ تصدير بياناتي (JSON)</button>
+            <button class="btn btn-outline btn-block" id="btn-delete-account" type="button" data-i18n="settings.delete">🗑 حذف حسابي نهائيًا</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ CELEBRATION ============ -->
+  <div class="celebration" id="celebration">
+    <div class="card celebration-card">
+      <p class="big">💛</p>
+      <h3 data-i18n="celebration.title">توافق متبادل!</h3>
+      <p data-i18n="celebration.body">بدأ <b id="celeb-name">هند</b> يشعر بالاهتمام نفسه — يمكنكما الآن بدء محادثة آمنة.</p>
+      <button class="btn btn-gold btn-block" id="celeb-go" type="button" data-i18n="celebration.start">بدء المحادثة</button>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <!-- ============ RESTORE ACCOUNT (Wasla_22) ============ -->
+  <div class="profile-modal" id="restore-modal" hidden>
+    <div class="profile-modal-card card" style="text-align:center;padding:26px">
+      <p style="font-size:40px;margin:0 0 8px">🕊️</p>
+      <h3 data-i18n="restore.title">حسابك قيد الحذف</h3>
+      <p style="opacity:.85" id="restore-msg" data-i18n="restore.body">خيّرت حذف حسابك مسبقًا. يمكنك التراجع الآن قبل انتهاء المهلة، وإلا حُذفت كل بياناتك نهائيًا.</p>
+      <p class="hint" style="text-align:center" id="restore-by"></p>
+      <button class="btn btn-gold btn-block" id="btn-restore-account" type="button" data-i18n="restore.restore">↩ استرجاع حسابي</button>
+      <button class="btn btn-outline btn-block" id="btn-confirm-delete" type="button" style="margin-top:10px" data-i18n="restore.continue">المتابعة في الحذف — تسجيل الخروج</button>
+    </div>
+  </div>
+
+  <!-- ============ PROFILE MODAL ============ -->
+  <div class="profile-modal" id="profile-modal" hidden>
+    <div class="profile-modal-card card" id="profile-modal-body"></div>
+  </div>
+
+  <script src="js/i18n.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

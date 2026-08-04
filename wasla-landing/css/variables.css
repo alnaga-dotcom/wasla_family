@@ -1,0 +1,25 @@
+:root {
+  --burgundy: #6B1D2A;
+  --burgundy-dark: #4A0F1C;
+  --wine-deep: #2B0710;
+  --wine-mid: #3A0B15;
+  --gold: #C2A052;
+  --gold-light: #E9D4A6;
+  --gold-antique: #B48A1F;
+  --beige: #F3E9D7;
+  --ivory: #FFF8F2;
+  --white: #FFFFFF;
+  --muted: #DCCFC7;
+
+  --header-gradient: linear-gradient(180deg, #561624 0%, #4A0F1C 100%);
+  --section-gradient: linear-gradient(180deg, #4A0F1C 0%, #3A0B15 55%, #2B0710 100%);
+  --gold-gradient: linear-gradient(180deg, #E9D4A6 0%, #C2A052 100%);
+
+  --shadow-sm: 0 8px 22px rgba(25, 2, 8, .16);
+  --shadow-md: 0 18px 45px rgba(25, 2, 8, .28);
+
+  --radius-sm: 14px;
+  --radius-md: 20px;
+  --radius-lg: 28px;
+  --container: 1180px;
+}

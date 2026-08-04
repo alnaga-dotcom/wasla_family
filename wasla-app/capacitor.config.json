@@ -1,0 +1,15 @@
+{
+  "appId": "app.wasla.mobile",
+  "appName": "Wasla",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https",
+    "cleartext": true
+  },
+  "android": {
+    "buildOptions": {
+      "keystorePath": null,
+      "keystoreAlias": null
+    }
+  }
+}

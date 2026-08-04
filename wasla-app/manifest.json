@@ -1,0 +1,12 @@
+{
+  "name": "Wasla",
+  "short_name": "Wasla",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#6B4EE6",
+  "orientation": "portrait",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}
