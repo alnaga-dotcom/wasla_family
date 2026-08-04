@@ -284,7 +284,7 @@ function renderRegister() {
       body = `
         <p style="text-align:center;color:var(--muted);font-size:14px">الخطوة ٣ من ٣ — عملك وتعليمك</p>
         <label>المهنة</label>
-        <select id="profession">${options(REG_PROFESSION, '')}</select>
+        <select id="profession"><option value="">اختر المهنة...</option>${options(REG_PROFESSION, '')}</select>
         <div id="professionOtherWrap" style="display:none">
           <label>حدد مهنتك</label>
           <input id="profession_other" type="text" placeholder="مثال: طبيب أسنان" />
@@ -325,9 +325,17 @@ function renderRegister() {
     if (nextBtn) nextBtn.addEventListener('click', () => {
       if (step === 1) {
         if (!el('name').value.trim()) { showError(el('error'), { message: 'أدخل اسم الظهور أولًا' }); return; }
+        const by = el('birthYear').value.trim();
+        if (!by) { showError(el('error'), { message: 'أدخل سنة الميلاد' }); return; }
+        const byN = Number(by);
+        if (byN < 1948 || byN > 2008) { showError(el('error'), { message: 'سنة الميلاد يجب أن تكون بين ١٩٤٨ و ٢٠٠٨' }); return; }
         reg.name = el('name').value.trim();
         reg.gender = el('gender').value;
+        reg.firstName = el('firstName').value.trim();
+        reg.familyName = el('familyName').value.trim();
+        reg.birthYear = by;
       } else if (step === 2) {
+        if (!el('city').value.trim()) { showError(el('error'), { message: 'اكتب اسم المدينة' }); return; }
         reg.country = el('country').value;
         reg.nationality = el('nationality').value;
         reg.governorate = el('governorate').value;
@@ -341,10 +349,15 @@ function renderRegister() {
     const registerBtn = el('registerBtn');
     if (registerBtn) registerBtn.addEventListener('click', async () => {
       const profession = el('profession').value;
+      const phone = el('phone').value.trim();
+      const email = el('email').value.trim();
+      if (!profession) { showError(el('error'), { message: 'اختر المهنة' }); return; }
+      if (!phone) { showError(el('error'), { message: 'أدخل رقم الهاتف' }); return; }
+      if (!email) { showError(el('error'), { message: 'أدخل البريد الإلكتروني' }); return; }
       const fields = {
-        first_name: el('firstName').value.trim(),
-        family_name: el('familyName').value.trim(),
-        birth_year: el('birthYear').value.trim(),
+        first_name: reg.firstName,
+        family_name: reg.familyName,
+        birth_year: reg.birthYear,
         seeking: reg.seeking,
         profile_for: reg.profileFor,
         country: reg.country,
@@ -358,8 +371,8 @@ function renderRegister() {
       const payload = {
         name: reg.name,
         gender: reg.gender,
-        phone: el('phone').value.trim(),
-        email: el('email').value.trim(),
+        phone,
+        email,
         fields,
       };
       try {

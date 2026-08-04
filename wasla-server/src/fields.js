@@ -56,7 +56,10 @@ export function isValidFieldValue(key, value) {
   if (spec.type === 'number') {
     const n = Number(value);
     if (!Number.isFinite(n)) return { ok: false, reason: 'not_a_number' };
-    if (key === 'birth_year') return { ok: true, value: String(Math.floor(n)) };
+    if (key === 'birth_year') {
+      if (n < 1948 || n > 2008) return { ok: false, reason: 'birth_year_range' };
+      return { ok: true, value: String(Math.floor(n)) };
+    }
     if (key === 'height' && (n < (spec.min || 0) || n > (spec.max || 999))) return { ok: false, reason: 'height_range' };
     return { ok: true, value: String(n) };
   }
