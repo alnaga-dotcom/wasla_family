@@ -65,7 +65,8 @@ router.patch('/me', (req, res) => {
     if (spec.type === 'text') {
       const mod = checkField(req.userId, field_key, check.value);
       if (!mod.allowed) {
-        return apiError(res, 422, 'MODERATION_REJECT', 'لحماية خصوصية الجميع، لا يُسمح بإضافة وسائل تواصل أو روابط أو بيانات اتصال. الرجاء تعديل النص.', 'value', { violations: mod.violations });
+        const bad = (mod.violations || []).some((v) => v.type === 'profanity');
+        return apiError(res, 422, 'MODERATION_REJECT', bad ? 'النص يحتوي على كلمات غير لائقة. الرجاء تعديله.' : 'لحماية خصوصية الجميع، لا يُسمح بإضافة وسائل تواصل أو روابط أو بيانات اتصال. الرجاء تعديل النص.', 'value', { violations: mod.violations });
       }
     }
     const sensitive = spec.sensitive ? 1 : 0;

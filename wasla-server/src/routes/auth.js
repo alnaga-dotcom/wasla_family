@@ -8,6 +8,7 @@ import { completionFor, isValidFieldValue } from '../fields.js';
 import { publish } from '../events.js';
 import { startInstance, transition } from '../workflows.js';
 import { sendOtp, OTP_PROVIDER } from '../otp/send.js';
+import { check as checkModeration } from '../moderation.js';
 
 const router = Router();
 
@@ -62,6 +63,10 @@ router.post('/register', async (req, res) => {
   const { name, phone, email, gender, fields } = req.body || {};
   if (!name || String(name).trim().length < 3 || String(name).trim().length > 60) {
     return apiError(res, 422, 'INVALID_NAME', 'الاسم يجب أن يكون بين ٣ و٦٠ حرفًا', 'name');
+  }
+  const modName = checkModeration(String(name).trim());
+  if (!modName.allowed) {
+    return apiError(res, 422, 'NAME_MODERATION_REJECT', 'الاسم يحتوي على كلمات غير لائقة. الرجاء اختيار اسم مهذب.', 'name', { violations: modName.violations });
   }
   const norm = normalizePhone(phone);
   if (!norm) return apiError(res, 422, 'INVALID_PHONE', 'رقم هاتف غير صالح — محلي (01xxxxxxxxx) أو دولي (+رمز الدولة...)', 'phone');

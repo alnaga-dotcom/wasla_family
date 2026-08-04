@@ -239,9 +239,8 @@ function renderLogin() {
 
 const REG_COUNTRY = ['مصر', 'السعودية', 'الإمارات', 'الكويت', 'قطر', 'البحرين', 'عُمان', 'الأردن', 'لبنان', 'سوريا', 'العراق', 'اليمن', 'ليبيا', 'تونس', 'الجزائر', 'المغرب', 'السودان', 'تركيا', 'أخرى'];
 const REG_GOVERNORATE = ['القاهرة', 'الجيزة', 'الإسكندرية', 'الدقهلية', 'البحر الأحمر', 'البحيرة', 'الفيوم', 'الغربية', 'الإسماعيلية', 'المنوفية', 'المنيا', 'القليوبية', 'الوادي الجديد', 'السويس', 'أسوان', 'أسيوط', 'بني سويف', 'بورسعيد', 'دمياط', 'الشرقية', 'جنوب سيناء', 'كفر الشيخ', 'مطروح', 'الأقصر', 'قنا', 'شمال سيناء', 'سوهاج'];
-const REG_CITY = ['القاهرة', 'الجيزة', 'الإسكندرية', 'طنطا', 'المنصورة', 'الزقازيق', 'أسيوط', 'أسوان', 'الأقصر', 'بورسعيد', 'السويس', 'الإسماعيلية', 'دمنهور', 'المحلة الكبرى', 'شبين الكوم', 'المنيا', 'بني سويف', 'الفيوم', 'كفر الشيخ', 'دمياط', 'مرسى مطروح', 'الغردقة', 'شرم الشيخ', 'سوهاج', 'قنا', 'العريش', 'الخارجة'];
 const REG_NATIONALITY = ['مصري', 'سعودي', 'إماراتي', 'كويتي', 'قطري', 'بحريني', 'عُماني', 'أردني', 'لبناني', 'سوري', 'عراقي', 'يمني', 'ليبي', 'تونسي', 'جزائري', 'مغربي', 'سوداني', 'تركي', 'أخرى'];
-const REG_PROFESSION = ['طب', 'هندسة', 'تعليم', 'تقنية معلومات', 'أعمال', 'تجارة', 'حرفي', 'قطاع حكومي', 'ربة منزل', 'طالب', 'أخرى'];
+const REG_PROFESSION = ['طب', 'هندسة', 'تعليم', 'تقنية معلومات', 'أعمال', 'تجارة', 'حرفي', 'قطاع حكومي', 'ربة منزل', 'طالب', 'لا أعمل', 'أخرى'];
 const REG_EDUCATION = ['أقل من ثانوي', 'ثانوية', 'دبلوم', 'بكالوريوس', 'ماجستير', 'دكتوراه', 'أخرى'];
 
 function renderRegister() {
@@ -279,13 +278,17 @@ function renderRegister() {
         <label>المحافظة</label>
         <select id="governorate">${options(REG_GOVERNORATE, 'القاهرة')}</select>
         <label>المدينة</label>
-        <select id="city">${options(REG_CITY, 'القاهرة')}</select>
+        <input id="city" type="text" placeholder="مثال: المنصورة" />
       `;
     } else {
       body = `
         <p style="text-align:center;color:var(--muted);font-size:14px">الخطوة ٣ من ٣ — عملك وتعليمك</p>
         <label>المهنة</label>
         <select id="profession">${options(REG_PROFESSION, '')}</select>
+        <div id="professionOtherWrap" style="display:none">
+          <label>حدد مهنتك</label>
+          <input id="profession_other" type="text" placeholder="مثال: طبيب أسنان" />
+        </div>
         <label>المؤهل الدراسي</label>
         <select id="education">${options(REG_EDUCATION, '')}</select>
         <label>رقم الهاتف</label>
@@ -315,9 +318,21 @@ function renderRegister() {
       el('seeking').addEventListener('change', (e) => { reg.seeking = e.target.value; });
       el('profileFor').addEventListener('change', (e) => { reg.profileFor = e.target.value; });
     }
+    if (step === 3) {
+      el('profession').addEventListener('change', (e) => { el('professionOtherWrap').style.display = e.target.value === 'أخرى' ? 'block' : 'none'; });
+    }
     const nextBtn = el('nextBtn');
     if (nextBtn) nextBtn.addEventListener('click', () => {
-      if (step === 1 && !el('name').value.trim()) { showError(el('error'), { message: 'أدخل اسم الظهور أولًا' }); return; }
+      if (step === 1) {
+        if (!el('name').value.trim()) { showError(el('error'), { message: 'أدخل اسم الظهور أولًا' }); return; }
+        reg.name = el('name').value.trim();
+        reg.gender = el('gender').value;
+      } else if (step === 2) {
+        reg.country = el('country').value;
+        reg.nationality = el('nationality').value;
+        reg.governorate = el('governorate').value;
+        reg.city = el('city').value.trim();
+      }
       step++;
       draw();
     });
@@ -325,22 +340,24 @@ function renderRegister() {
     if (backBtn) backBtn.addEventListener('click', () => { step--; draw(); });
     const registerBtn = el('registerBtn');
     if (registerBtn) registerBtn.addEventListener('click', async () => {
+      const profession = el('profession').value;
       const fields = {
         first_name: el('firstName').value.trim(),
         family_name: el('familyName').value.trim(),
         birth_year: el('birthYear').value.trim(),
         seeking: reg.seeking,
         profile_for: reg.profileFor,
-        country: el('country').value,
-        nationality: el('nationality').value,
-        governorate: el('governorate').value,
-        city: el('city').value,
-        profession: el('profession').value,
+        country: reg.country,
+        nationality: reg.nationality,
+        governorate: reg.governorate,
+        city: reg.city,
+        profession,
+        profession_other: profession === 'أخرى' ? el('profession_other').value.trim() : '',
         education: el('education').value,
       };
       const payload = {
-        name: el('name').value.trim(),
-        gender: el('gender').value,
+        name: reg.name,
+        gender: reg.gender,
         phone: el('phone').value.trim(),
         email: el('email').value.trim(),
         fields,
@@ -407,9 +424,10 @@ async function renderProfile() {
         ${fieldEditor('birth_year', 'سنة الميلاد', 'number', fields.birth_year)}
         ${fieldEditor('country', 'الدولة', 'select', fields.country, REG_COUNTRY)}
         ${fieldEditor('governorate', 'المحافظة', 'select', fields.governorate, REG_GOVERNORATE)}
-        ${fieldEditor('city', 'المدينة', 'select', fields.city, REG_CITY)}
+        ${fieldEditor('city', 'المدينة', 'text', fields.city)}
         ${fieldEditor('nationality', 'الجنسية', 'select', fields.nationality, REG_NATIONALITY)}
         ${fieldEditor('profession', 'المهنة', 'select', fields.profession, REG_PROFESSION)}
+        ${fieldEditor('profession_other', 'المهنة (حدد)', 'text', fields.profession_other)}
         ${fieldEditor('education', 'المؤهل الدراسي', 'select', fields.education, REG_EDUCATION)}
         ${fieldEditor('religiosity', 'الالتزام الديني', 'select', fields.religiosity, ['ملتزم','متوسط','مرن'])}
         ${fieldEditor('lifestyle', 'نمط الحياة', 'select', fields.lifestyle, ['هادئ','منتظم','اجتماعي'])}
@@ -431,7 +449,7 @@ async function renderProfile() {
       });
     }
     el('saveProfile').addEventListener('click', async () => {
-      const keys = ['birth_year','country','governorate','city','nationality','profession','education','religiosity','lifestyle','height','bio'];
+      const keys = ['birth_year','country','governorate','city','nationality','profession','profession_other','education','religiosity','lifestyle','height','bio'];
       const updates = [];
       for (const key of keys) {
         const input = el('field-' + key);

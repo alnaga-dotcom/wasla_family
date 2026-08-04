@@ -36,7 +36,48 @@ const SCORES = {
   url: 70,
   social: 80,
   obfuscation: 50,
+  profanity: 90,
 };
+
+const ARABIC_LEET_MAP = { '0': 'ا', '1': 'ل', '3': 'ا', '5': 'س', '7': 'ط', '8': 'ب', '9': 'ق' };
+const LATIN_LEET_MAP = { '0': 'o', '1': 'l', '3': 'e', '4': 'a', '5': 's', '7': 't', '8': 'b', '9': 'g' };
+
+const PROFANITY_TERMS = [
+  // Arabic (normalized form: أإآ->ا, ة->ه, ى->ي)
+  'احا', 'اخا', 'ابن كس', 'ابن شرموطه', 'ابن وسخه', 'بنت كس', 'بنت شرموطه', 'بنت وسخه',
+  'عرص', 'زباله', 'زفت', 'خراء', 'خرا', 'خره', 'شرموط', 'متناك', 'منيوك', 'نياك', 'نيك',
+  'ينيك', 'يانيك', 'انيك', 'كس', 'زب', 'قضيب', 'طيز', 'عهر', 'قحبه', 'عاهره', 'لوطي',
+  'سحاقي', 'سحاقيه', 'خنيث', 'ديوث', 'كسمك', 'كسمها', 'متناكه', 'شرموطه',
+  'بهيم', 'حيوان', 'كلب', 'غبي', 'اهبل', 'مغفل', 'غلس', 'مشخله', 'شحات', 'حرامي',
+  'وسخه', 'قذاره', 'وصخ', 'قرد', 'حمار',
+  // English
+  'fuck', 'fuk', 'fucc', 'fucker', 'shit', 'bitch', 'whore', 'slut', 'asshole', 'pussy',
+  'dick', 'cock', 'nigger', 'nigga', 'retard', 'bastard', 'cunt', 'fag', 'faggot',
+];
+
+const ESC_RE = /[.*+?^${}()|[\]\\]/g;
+const PROFANITY_RE = new RegExp(
+  `(?<![\\p{L}\\p{N}])(?:${PROFANITY_TERMS.map((t) => t.replace(ESC_RE, '\\$&')).join('|')})(?![\\p{L}\\p{N}])`,
+  'iu'
+);
+
+function profanityVariants(text) {
+  const n = normalize(text);
+  return [
+    n,
+    n.replace(/[0-9]/g, ''),
+    n.replace(/[0-9]/g, (d) => ARABIC_LEET_MAP[d] || d),
+    n.replace(/[0-9]/g, (d) => LATIN_LEET_MAP[d] || d),
+  ];
+}
+
+function hasProfanity(normalized) {
+  for (const v of profanityVariants(normalized)) {
+    const m = v.match(PROFANITY_RE);
+    if (m) return m[0];
+  }
+  return null;
+}
 
 function detect(normalized) {
   const violations = [];
@@ -60,6 +101,9 @@ function detect(normalized) {
 
   const obs = normalized.match(OBFSUCATION_RE);
   if (obs) push('obfuscation', obs[0]);
+
+  const profanity = hasProfanity(normalized);
+  if (profanity) push('profanity', profanity);
 
   return { score, violations };
 }
