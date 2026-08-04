@@ -36,7 +36,7 @@ From the repo root:
 
 ```powershell
 # Replace with your real Render URL and domain
-$env:WASLA_API_BASE='https://wasla-api.onrender.com'
+$env:WASLA_API_BASE='https://wasla-family.onrender.com'
 $env:WASLA_APP_URL='https://app.wasla.family'
 $env:WASLA_DOMAIN='wasla.family'
 node scripts/prepare-deploy.mjs
@@ -156,7 +156,7 @@ notifications to the Android app:
 
 ```powershell
 cd wasla-app
-$env:WASLA_API_BASE='https://wasla-api.onrender.com'
+$env:WASLA_API_BASE='https://wasla-family.onrender.com'
 npm run cap:build:release
 ```
 

@@ -6,7 +6,7 @@ import { execSync } from 'node:child_process';
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const DEPLOY = join(ROOT, 'deploy');
 
-const API_BASE = process.env.WASLA_API_BASE || 'https://wasla-api.onrender.com';
+const API_BASE = process.env.WASLA_API_BASE || 'https://wasla-family.onrender.com';
 const APP_URL = process.env.WASLA_APP_URL || 'https://app.wasla.family';
 const DOMAIN = process.env.WASLA_DOMAIN || 'wasla.family';
 
