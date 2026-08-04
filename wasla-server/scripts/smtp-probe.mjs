@@ -16,8 +16,9 @@ for (const line of fs.readFileSync(envFile, 'utf8').split(/\r?\n/)) {
 const host = process.env.SMTP_HOST || env.SMTP_HOST || 'smtp.gmail.com'
 const port = Number(process.env.SMTP_PORT || env.SMTP_PORT || 465)
 const secure = String(process.env.SMTP_SECURE || env.SMTP_SECURE || 'true') === 'true'
-const user = env.SMTP_USER
-const pass = env.SMTP_PASS
+const user = process.env.SMTP_USER || env.SMTP_USER
+const pass = process.env.SMTP_PASS || env.SMTP_PASS
+const from = process.env.SMTP_FROM || env.SMTP_FROM || user
 
 console.log('probe host=%s port=%d secure=%s user=%s', host, port, secure, user)
 
@@ -32,12 +33,12 @@ const t = nodemailer.createTransport({
   auth: { user, pass },
 })
 
-try {
+  try {
   const info = await t.sendMail({
-    from: env.SMTP_FROM || user,
+    from,
     to: '066.city@gmail.com',
-    subject: 'Wasla SMTP probe 587',
-    text: 'If you see this, the 587 config is valid.',
+    subject: 'Wasla SMTP probe brevo',
+    text: 'If you see this, Brevo SMTP works.',
   })
   console.log('OK messageId=%s', info.messageId)
 } catch (err) {

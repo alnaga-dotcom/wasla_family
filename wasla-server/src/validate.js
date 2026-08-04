@@ -1,8 +1,7 @@
 // Per Wasla_21: consistent error envelope { code, message, field, ref }
-export function apiError(res, status, code, message, field, extra) {
+export function apiError(res, status, code, message, field) {
   const body = { code, message };
   if (field) body.field = field;
-  if (extra) Object.assign(body, extra);
   body.ref = `err-${Date.now().toString(36)}`;
   return res.status(status).json(body);
 }

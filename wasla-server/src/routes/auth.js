@@ -83,9 +83,8 @@ router.post('/register', async (req, res) => {
   try {
     await sendOtp({ phone: norm, email: emailNorm, code });
   } catch (err) {
-    const smtp = `host=${process.env.SMTP_HOST} port=${process.env.SMTP_PORT} secure=${process.env.SMTP_SECURE} user=${process.env.SMTP_USER}`;
-    console.error('OTP_SEND_FAILED detail:', err && err.response ? err.response : (err && err.message), smtp);
-    return apiError(res, 502, 'OTP_SEND_FAILED', 'تعذر إرسال رمز التحقق، جرّب مرة أخرى', 'phone', { detail: (err && err.response ? err.response : (err && err.message)) + ' | ' + smtp });
+    console.error('OTP send failed:', err && err.response ? err.response : (err && err.message));
+    return apiError(res, 502, 'OTP_SEND_FAILED', 'تعذر إرسال رمز التحقق، جرّب مرة أخرى', 'phone');
   }
   const dev = config.devOtpEcho ? { otp: code, note: 'dev only — يظهر في الرد للتجربة المحلية فقط' } : undefined;
 
