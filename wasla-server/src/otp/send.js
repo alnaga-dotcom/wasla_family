@@ -36,6 +36,12 @@ async function sendEmail({ email, code }) {
       user: process.env.SMTP_USER,
       pass: process.env.SMTP_PASS,
     },
+    // Force IPv4 + short timeouts so a blocked provider can never hang a request
+    // (common on cloud platforms where IPv6 routes are unavailable).
+    family: 4,
+    connectionTimeout: 15000,
+    greetingTimeout: 15000,
+    socketTimeout: 30000,
   });
   await transporter.sendMail({
     from: `"وصلة" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
