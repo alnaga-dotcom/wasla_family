@@ -65,6 +65,7 @@
 
         <div class="hero-actions reveal">
           <a class="btn btn-gold btn-large data-app-link" href="http://127.0.0.1:8081">ابدأ رحلتك الآن</a>
+          <a class="btn btn-outline btn-large" href="/wasla.apk" download>تحميل تطبيق أندرويد</a>
           <a class="btn btn-ghost btn-large" href="#how">اكتشف كيف تعمل وصلة</a>
         </div>
 
@@ -586,7 +587,7 @@
         <h3>ابدأ بسرعة</h3>
         <div class="footer-quick">
           <div class="qr-placeholder" aria-label="رمز QR تجريبي"><span></span></div>
-          <div><strong>افتح وصلة على هاتفك</strong><small>امسح الرمز أو ابدأ التسجيل من الموقع.</small><a class="footer-mini-cta" href="#" data-open="register">إنشاء حساب</a></div>
+          <div><strong>افتح وصلة على هاتفك</strong><small>حمّل تطبيق أندرويد أو ابدأ التسجيل من الموقع.</small><a class="footer-mini-cta" href="/wasla.apk" download>تحميل التطبيق</a></div>
         </div>
         <form class="newsletter">
           <input type="email" placeholder="بريدك الإلكتروني" aria-label="البريد الإلكتروني" />
@@ -719,6 +720,7 @@
             </article>
           `;
         }).join('');
+        grid.querySelectorAll('.plan-card').forEach((card) => card.classList.add('is-visible'));
       } catch (e) { console.error('plans load failed', e); }
     }
     function translateFeature(f) {

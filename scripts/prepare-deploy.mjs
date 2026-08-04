@@ -40,7 +40,7 @@ writeFileSync(join(appDst, '.htaccess'), `DirectoryIndex index.html
 const landingSrc = join(ROOT, 'wasla-landing');
 const landingDst = join(DEPLOY, 'landing');
 mkdirSync(landingDst, { recursive: true });
-for (const f of ['index.html', 'css', 'js']) {
+for (const f of ['index.html', 'css', 'js', 'assets', 'images', 'manifest.webmanifest', 'sw.js']) {
   const src = join(landingSrc, f);
   if (!existsSync(src)) continue;
   const dst = join(landingDst, f);

@@ -81,6 +81,12 @@
   color: var(--burgundy-dark);
 }
 .btn-outline:hover { background: rgba(194,160,82,.12); }
+.hero-actions .btn-outline {
+  color: var(--burgundy-dark);
+  border-color: var(--ivory);
+  background: var(--ivory);
+}
+.hero-actions .btn-outline:hover { background: var(--gold-light); border-color: var(--gold-light); }
 .btn-gold {
   color: var(--burgundy-dark);
   background: var(--gold-gradient);
