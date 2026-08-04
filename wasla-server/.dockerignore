@@ -1,0 +1,9 @@
+node_modules
+data
+uploads
+logs
+*.err
+*.log
+.env
+.env.production
+npm-debug.log

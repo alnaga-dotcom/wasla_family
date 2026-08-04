@@ -6,7 +6,9 @@ COPY package*.json ./
 RUN npm ci --omit=dev
 
 COPY src ./src
-COPY data ./data
+
+# data/ is intentionally NOT copied: it is created at runtime (db.js) and
+# persists via the Render disk mounted at /app/data.
 
 RUN mkdir -p /app/logs /app/data/uploads
 
