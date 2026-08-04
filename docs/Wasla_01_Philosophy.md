@@ -1,4 +1,4 @@
-# Wasla (وصلة) – Product Philosophy
+# Wasla (وصلــه) – Product Philosophy
 
 > Part of the [Wasla Documentation Index](Wasla_README.md)
 

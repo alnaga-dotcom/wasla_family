@@ -2,10 +2,10 @@ import { db, nowIso } from './db.js';
 import { sendPush } from './push.js';
 
 const TITLES = {
-  like: 'إعجاب جديد في وصلة',
+  like: 'إعجاب جديد في وصلــه',
   match: 'تطابق متبادل!',
   message: 'رسالة جديدة',
-  system: 'وصلة',
+  system: 'وصلــه',
 };
 
 // إنشاء إشعار لطرفٍ ما — Wasla_16

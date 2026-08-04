@@ -1,18 +1,24 @@
 // Field definitions for onboarding/completion, aligned with Wasla_05 tiers.
-// Weights sum to 100 when the optional sensitive field is included.
+// Weights cap at 100 through completionFor; values keep the full set usable.
 export const FIELD_SPECS = {
-  age:        { label: 'العمر',           domain: 'Personal',  tier: 1, weight: 15, type: 'number', values: null },
-  city:       { label: 'المدينة',         domain: 'Personal',  tier: 1, weight: 15, type: 'select', values: ['القاهرة', 'الجيزة', 'الإسكندرية', 'المنصورة', 'طنطا'] },
-  profession: { label: 'المهنة',           domain: 'Career',    tier: 2, weight: 15, type: 'select', values: ['هندسة', 'تعليم', 'طب', 'تجارة', 'محاسبة', 'تقنية'] },
-  education:  { label: 'التعليم',          domain: 'Education', tier: 2, weight: 10, type: 'select', values: ['ثانوية', 'دبلوم', 'بكالوريوس', 'ماجستير', 'دكتوراه'] },
-  religiosity:{ label: 'الالتزام الديني',  domain: 'Religious', tier: 2, weight: 10, type: 'select', values: ['ملتزم', 'متوسط', 'مرن'] },
-  lifestyle:  { label: 'نمط الحياة',       domain: 'Lifestyle', tier: 2, weight: 5,  type: 'select', values: ['هادئ', 'منتظم', 'اجتماعي'] },
-  nationality:{ label: 'الجنسية',          domain: 'Personal',  tier: 1, weight: 10, type: 'select', values: ['مصري', 'سعودي', 'إماراتي', 'كويتي', 'قطري', 'بحريني', 'عُماني', 'أردني', 'لبناني', 'سوري', 'عراقي', 'مغربي', 'جزائري', 'تونسي', 'ليبي', 'سوداني', 'يمني', 'تركي', 'أخرى'] },
-  height:     { label: 'الطول (سم)',       domain: 'Personal',  tier: 1, weight: 5,  type: 'number', values: null, min: 120, max: 220 },
-  health:     { label: 'حالات صحية',       domain: 'Health',    tier: 3, weight: 5,  type: 'select', values: ['لا توجد', 'أوضح لاحقًا'], sensitive: true },
-  photo_done: { label: 'الصورة الشخصية',   domain: 'Verification', tier: 1, weight: 10, type: 'flag' },
-  selfie_done:{ label: 'التحقق بالسيلفي',  domain: 'Verification', tier: 1, weight: 15, type: 'flag' },
-  bio:        { label: 'نبذة عني',        domain: 'Personal',  tier: 2, weight: 10, type: 'text', maxLength: 500 },
+  first_name:  { label: 'الاسم الأول',       domain: 'Identity',   tier: 1, weight: 5,  type: 'text', maxLength: 60, private: true },
+  family_name: { label: 'اسم العائلة',       domain: 'Identity',   tier: 1, weight: 5,  type: 'text', maxLength: 60, private: true },
+  birth_year:  { label: 'سنة الميلاد',       domain: 'Identity',   tier: 1, weight: 10, type: 'number', min: 1948, max: 2008 },
+  seeking:     { label: 'أنا أبحث عن',       domain: 'Preference', tier: 1, weight: 5,  type: 'select', values: ['شريك', 'شريكة'] },
+  profile_for: { label: 'الحساب لصالح',      domain: 'Account',    tier: 1, weight: 5,  type: 'select', values: ['نفسي', 'أحد من عائلتي', 'أحد من أصدقائي'] },
+  country:     { label: 'الدولة',            domain: 'Personal',   tier: 1, weight: 5,  type: 'select', values: ['مصر', 'السعودية', 'الإمارات', 'الكويت', 'قطر', 'البحرين', 'عُمان', 'الأردن', 'لبنان', 'سوريا', 'العراق', 'اليمن', 'ليبيا', 'تونس', 'الجزائر', 'المغرب', 'السودان', 'تركيا', 'أخرى'] },
+  governorate: { label: 'المحافظة',          domain: 'Personal',   tier: 1, weight: 5,  type: 'select', values: ['القاهرة', 'الجيزة', 'الإسكندرية', 'الدقهلية', 'البحر الأحمر', 'البحيرة', 'الفيوم', 'الغربية', 'الإسماعيلية', 'المنوفية', 'المنيا', 'القليوبية', 'الوادي الجديد', 'السويس', 'أسوان', 'أسيوط', 'بني سويف', 'بورسعيد', 'دمياط', 'الشرقية', 'جنوب سيناء', 'كفر الشيخ', 'مطروح', 'الأقصر', 'قنا', 'شمال سيناء', 'سوهاج'] },
+  city:        { label: 'المدينة',          domain: 'Personal',   tier: 1, weight: 5,  type: 'select', values: ['القاهرة', 'الجيزة', 'الإسكندرية', 'طنطا', 'المنصورة', 'الزقازيق', 'أسيوط', 'أسوان', 'الأقصر', 'بورسعيد', 'السويس', 'الإسماعيلية', 'دمنهور', 'المحلة الكبرى', 'شبين الكوم', 'المنيا', 'بني سويف', 'الفيوم', 'كفر الشيخ', 'دمياط', 'مرسى مطروح', 'الغردقة', 'شرم الشيخ', 'سوهاج', 'قنا', 'العريش', 'الخارجة'] },
+  nationality: { label: 'الجنسية',          domain: 'Personal',   tier: 1, weight: 5,  type: 'select', values: ['مصري', 'سعودي', 'إماراتي', 'كويتي', 'قطري', 'بحريني', 'عُماني', 'أردني', 'لبناني', 'سوري', 'عراقي', 'يمني', 'ليبي', 'تونسي', 'جزائري', 'مغربي', 'سوداني', 'تركي', 'أخرى'] },
+  profession:  { label: 'المهنة',           domain: 'Career',     tier: 2, weight: 10, type: 'select', values: ['طب', 'هندسة', 'تعليم', 'تقنية معلومات', 'أعمال', 'تجارة', 'حرفي', 'قطاع حكومي', 'ربة منزل', 'طالب', 'أخرى'] },
+  education:   { label: 'المؤهل الدراسي',   domain: 'Education',  tier: 2, weight: 10, type: 'select', values: ['أقل من ثانوي', 'ثانوية', 'دبلوم', 'بكالوريوس', 'ماجستير', 'دكتوراه', 'أخرى'] },
+  religiosity: { label: 'الالتزام الديني',  domain: 'Religious',  tier: 2, weight: 5,  type: 'select', values: ['ملتزم', 'متوسط', 'مرن'] },
+  lifestyle:   { label: 'نمط الحياة',       domain: 'Lifestyle',  tier: 2, weight: 5,  type: 'select', values: ['هادئ', 'منتظم', 'اجتماعي'] },
+  height:      { label: 'الطول (سم)',       domain: 'Personal',   tier: 1, weight: 5,  type: 'number', values: null, min: 120, max: 220 },
+  health:      { label: 'حالات صحية',       domain: 'Health',     tier: 3, weight: 5,  type: 'select', values: ['لا توجد', 'أوضح لاحقًا'], sensitive: true },
+  photo_done:  { label: 'الصورة الشخصية',   domain: 'Verification', tier: 1, weight: 5,  type: 'flag' },
+  selfie_done: { label: 'التحقق بالسيلفي',  domain: 'Verification', tier: 1, weight: 10, type: 'flag' },
+  bio:         { label: 'نبذة عني',         domain: 'Personal',   tier: 2, weight: 10, type: 'text', maxLength: 500 },
 };
 
 export const CHECKLIST = [
@@ -49,7 +55,7 @@ export function isValidFieldValue(key, value) {
   if (spec.type === 'number') {
     const n = Number(value);
     if (!Number.isFinite(n)) return { ok: false, reason: 'not_a_number' };
-    if (key === 'age' && (n < 18 || n > 78)) return { ok: false, reason: 'age_range' };
+    if (key === 'birth_year') return { ok: true, value: String(Math.floor(n)) };
     if (key === 'height' && (n < (spec.min || 0) || n > (spec.max || 999))) return { ok: false, reason: 'height_range' };
     return { ok: true, value: String(n) };
   }

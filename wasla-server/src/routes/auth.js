@@ -4,12 +4,23 @@ import { db, nowIso } from '../db.js';
 import { config } from '../config.js';
 import { apiError, normalizePhone } from '../validate.js';
 import { authRequired } from '../middleware/auth.js';
-import { completionFor } from '../fields.js';
+import { completionFor, isValidFieldValue } from '../fields.js';
 import { publish } from '../events.js';
 import { startInstance, transition } from '../workflows.js';
 import { sendOtp, OTP_PROVIDER } from '../otp/send.js';
 
 const router = Router();
+
+function saveProfileField(userId, fieldKey, value) {
+  const check = isValidFieldValue(fieldKey, value);
+  if (!check.ok) return;
+  const sensitive = fieldKey === 'health' ? 1 : 0;
+  db.prepare(
+    `INSERT INTO profile_fields (user_id, field_key, value, domain, sensitive, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?)
+     ON CONFLICT(user_id, field_key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`
+  ).run(userId, fieldKey, check.value, 'registration', sensitive, nowIso());
+}
 
 function issueOtp(userId, purpose) {
   const code = String(randomInt(100000, 999999));
@@ -46,9 +57,9 @@ function isValidEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email).trim());
 }
 
-// POST /api/auth/register  { name, phone, email?, gender }
+// POST /api/auth/register  { name, phone, email?, gender, fields? }
 router.post('/register', async (req, res) => {
-  const { name, phone, email, gender } = req.body || {};
+  const { name, phone, email, gender, fields } = req.body || {};
   if (!name || String(name).trim().length < 3 || String(name).trim().length > 60) {
     return apiError(res, 422, 'INVALID_NAME', 'الاسم يجب أن يكون بين ٣ و٦٠ حرفًا', 'name');
   }
@@ -77,6 +88,13 @@ router.post('/register', async (req, res) => {
     const r = db.prepare('INSERT INTO users (name, phone, email, gender) VALUES (?, ?, ?, ?)')
       .run(String(name).trim(), norm, emailNorm, gender);
     userId = Number(r.lastInsertRowid);
+  }
+
+  if (fields && typeof fields === 'object') {
+    for (const [fieldKey, value] of Object.entries(fields)) {
+      if (value === undefined || value === null || value === '') continue;
+      saveProfileField(userId, fieldKey, value);
+    }
   }
 
   const code = issueOtp(userId, 'register');

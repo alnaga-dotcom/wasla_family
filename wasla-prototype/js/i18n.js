@@ -1,8 +1,8 @@
 (function (window) {
   const i18n = {
     ar: {
-      'app.title': 'وصلة — بروتوتايب تفاعلي',
-      'app.brand': 'وصلة',
+      'app.title': 'وصلــه — بروتوتايب تفاعلي',
+      'app.brand': 'وصلــه',
       'app.subtitle': 'تجربة زواج جادة وآمنة — تسجيل في أقل من ٦٠ ثانية',
       'app.language': 'English',
 
@@ -30,7 +30,7 @@
       'auth.errorLogin': 'تعذّر تسجيل الدخول',
       'auth.errorRegister': 'تعذّر التسجيل',
       'auth.welcomeBack': 'أهلاً بعودتك',
-      'auth.welcome': 'مرحبًا بك في وصلة — أكمل ملفك في خطوات',
+      'auth.welcome': 'مرحبًا بك في وصلــه — أكمل ملفك في خطوات',
 
       'nav.discovery': 'الاقتراحات',
       'nav.search': 'البحث',

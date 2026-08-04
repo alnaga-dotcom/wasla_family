@@ -1,4 +1,4 @@
-# Wasla (وصلة) — V1 Clickable Prototype
+# Wasla (وصلــه) — V1 Clickable Prototype
 
 > HTML prototype phase per [Wasla_24](docs/Wasla_24_Website_Design.md) Next Steps.
 > Mirrors the flow: Register → Onboarding/Profile → Discovery (swipe) → Match → Messaging,

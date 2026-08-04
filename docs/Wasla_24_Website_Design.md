@@ -25,7 +25,7 @@ Derived from Wasla_02:
 
 A simple geometric knot — never nautical, never tangled. It must read instantly as:
 
-- **Connection** (وصلة = a link/connection)
+- **Connection** (وصلــه = a link/connection)
 - **Commitment** (the knot binds)
 - **Strength** (the knot holds)
 - **Unity** (two ends becoming one)
@@ -36,7 +36,7 @@ Design constraints:
 - Maximum simplicity; at 32px (favicon/app icon) it must remain readable.
 - Built from smooth, single-width geometric strokes; rounded joins.
 - Animated-friendly: the knot may **tie itself** on splash/load (one loop, 800–1200ms, then settles) — "the connection being made".
-- Lockups: (1) mark alone, (2) mark + wordmark "Wasla" (Latin, Inter), (3) mark + wordmark "وصلة" (Arabic, Cairo/IBM Plex Sans Arabic).
+- Lockups: (1) mark alone, (2) mark + wordmark "Wasla" (Latin, Inter), (3) mark + wordmark "وصلــه" (Arabic, Cairo/IBM Plex Sans Arabic).
 - Monochrome version required (watermarks, stamps, verification contexts).
 - Must never resemble the blue verification badge or the gold premium shield.
 
@@ -123,7 +123,7 @@ Elegant, warm, dignified Islamic style — decided direction (burgundy replaces 
 
 ### 1. Landing Page
 - Value proposition headline: **"نربط القلوب... لنبني أسراً مستقرة"** / **"Connect Hearts, Building Families."**
-- "Find your وصلة" CTA
+- "Find your وصلــه" CTA
 - Trust badges (verification, privacy, moderation)
 - Login / Register buttons
 - Language toggle

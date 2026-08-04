@@ -11,7 +11,7 @@ const cfg = await cfgRes.json();
 assert(cfg.apiBase === API && cfg.appUrl === 'http://127.0.0.1:8081', 'landing config.json points to local services');
 
 const html = await index.text();
-assert(html.includes('وصلة'), 'landing has brand');
+assert(html.includes('وصلــه'), 'landing has brand');
 assert(html.includes('loadStats'), 'landing loads dynamic stats script');
 assert(html.includes('loadPlans'), 'landing loads dynamic plans script');
 assert(html.includes('data-app-link'), 'landing links to app via config');

@@ -34,7 +34,9 @@ const state = {
 
 const el = (id) => document.getElementById(id);
 
-async function api(path, method = 'GET', body = null) {
+const RETRY_DELAY_MS = [1000, 3000, 8000];
+
+async function api(path, method = 'GET', body = null, _tries = 0) {
   const url = API_BASE + path;
   const options = {
     method,
@@ -52,11 +54,15 @@ async function api(path, method = 'GET', body = null) {
       logout();
       throw err;
     }
+    if (!err.status && _tries < RETRY_DELAY_MS.length) {
+      await new Promise((r) => setTimeout(r, RETRY_DELAY_MS[_tries]));
+      return api(path, method, body, _tries + 1);
+    }
     throw err;
   }
 }
 
-async function apiUpload(path, formData) {
+async function apiUpload(path, formData, _tries = 0) {
   const url = API_BASE + path;
   const options = {
     method: 'POST',
@@ -73,6 +79,10 @@ async function apiUpload(path, formData) {
     if (err.status === 401 || err.status === 403) {
       logout();
       throw err;
+    }
+    if (!err.status && _tries < RETRY_DELAY_MS.length) {
+      await new Promise((r) => setTimeout(r, RETRY_DELAY_MS[_tries]));
+      return apiUpload(path, formData, _tries + 1);
     }
     throw err;
   }
@@ -118,7 +128,7 @@ async function registerPushToken() {
       const status = await push.requestPermissions();
       if (status && status.receive === 'granted') {
         if (push.createChannel) {
-          push.createChannel({ id: 'wasla', name: 'وصلة', importance: 5, visibility: 1, vibration: true, sound: 'default' }).catch(() => {});
+          push.createChannel({ id: 'wasla', name: 'وصلــه', importance: 5, visibility: 1, vibration: true, sound: 'default' }).catch(() => {});
         }
         push.addListener('registration', (data) => {
           api('/api/push/token', 'POST', { token: data.value }).catch(() => {});
@@ -193,16 +203,22 @@ async function updateBadge() {
 }
 
 function showError(container, err) {
-  const msg = err?.data?.message || err?.message || 'حدث خطأ';
+  let msg = err?.data?.message || err?.message || 'حدث خطأ';
+  if (!err?.status) msg = 'تعذر الاتصال بالخادم — حاول مرة أخرى بعد لحظات';
   container.innerHTML = `<div class="error">${msg}</div>`;
+}
+
+function brandHeader() {
+  return `<div class="brand-logo">وصلــه</div>`;
 }
 
 function renderLogin() {
   const app = el('app');
   app.innerHTML = `
     <div class="card">
-      <h1>وصلة</h1>
-      <p>تسجيل الدخول برقم الهاتف</p>
+      ${brandHeader()}
+      <h1>تسجيل الدخول</h1>
+      <p>أدخل رقم هاتفك لإرسال رمز التحقق إلى بريدك الإلكتروني</p>
       <label>رقم الهاتف</label>
       <input id="phone" type="tel" placeholder="01xxxxxxxx" />
       <button id="loginBtn">إرسال رمز التحقق</button>
@@ -221,47 +237,131 @@ function renderLogin() {
   });
 }
 
+const REG_COUNTRY = ['مصر', 'السعودية', 'الإمارات', 'الكويت', 'قطر', 'البحرين', 'عُمان', 'الأردن', 'لبنان', 'سوريا', 'العراق', 'اليمن', 'ليبيا', 'تونس', 'الجزائر', 'المغرب', 'السودان', 'تركيا', 'أخرى'];
+const REG_GOVERNORATE = ['القاهرة', 'الجيزة', 'الإسكندرية', 'الدقهلية', 'البحر الأحمر', 'البحيرة', 'الفيوم', 'الغربية', 'الإسماعيلية', 'المنوفية', 'المنيا', 'القليوبية', 'الوادي الجديد', 'السويس', 'أسوان', 'أسيوط', 'بني سويف', 'بورسعيد', 'دمياط', 'الشرقية', 'جنوب سيناء', 'كفر الشيخ', 'مطروح', 'الأقصر', 'قنا', 'شمال سيناء', 'سوهاج'];
+const REG_CITY = ['القاهرة', 'الجيزة', 'الإسكندرية', 'طنطا', 'المنصورة', 'الزقازيق', 'أسيوط', 'أسوان', 'الأقصر', 'بورسعيد', 'السويس', 'الإسماعيلية', 'دمنهور', 'المحلة الكبرى', 'شبين الكوم', 'المنيا', 'بني سويف', 'الفيوم', 'كفر الشيخ', 'دمياط', 'مرسى مطروح', 'الغردقة', 'شرم الشيخ', 'سوهاج', 'قنا', 'العريش', 'الخارجة'];
+const REG_NATIONALITY = ['مصري', 'سعودي', 'إماراتي', 'كويتي', 'قطري', 'بحريني', 'عُماني', 'أردني', 'لبناني', 'سوري', 'عراقي', 'يمني', 'ليبي', 'تونسي', 'جزائري', 'مغربي', 'سوداني', 'تركي', 'أخرى'];
+const REG_PROFESSION = ['طب', 'هندسة', 'تعليم', 'تقنية معلومات', 'أعمال', 'تجارة', 'حرفي', 'قطاع حكومي', 'ربة منزل', 'طالب', 'أخرى'];
+const REG_EDUCATION = ['أقل من ثانوي', 'ثانوية', 'دبلوم', 'بكالوريوس', 'ماجستير', 'دكتوراه', 'أخرى'];
+
 function renderRegister() {
   const app = el('app');
-  app.innerHTML = `
-    <div class="card">
-      <h1>إنشاء حساب</h1>
-      <label>الاسم</label>
-      <input id="name" type="text" placeholder="الاسم" />
-      <label>الجنس</label>
-      <select id="gender">
-        <option value="male">ذكر</option>
-        <option value="female">أنثى</option>
-      </select>
-      <label>رقم الهاتف</label>
-      <input id="phone" type="tel" placeholder="01xxxxxxxx" />
-      <label>البريد الإلكتروني (اختياري)</label>
-      <input id="email" type="email" placeholder="example@domain.com" />
-      <button id="registerBtn">إنشاء</button>
-      <div id="error"></div>
-      <p style="text-align:center;margin-top:16px"><a href="#" id="toLogin">لديك حساب؟ ادخل</a></p>
-    </div>
-  `;
-  el('toLogin').addEventListener('click', (e) => { e.preventDefault(); renderLogin(); });
-  el('registerBtn').addEventListener('click', async () => {
-    const name = el('name').value.trim();
-    const gender = el('gender').value;
-    const phone = el('phone').value.trim();
-    const email = el('email').value.trim();
-    try {
-      const data = await api('/api/auth/register', 'POST', { name, gender, phone, email });
-      state.phone = phone;
-      renderVerify(data.dev?.otp);
-    } catch (err) { showError(el('error'), err); }
-  });
+  const reg = { gender: 'male', seeking: 'شريكة', profileFor: 'نفسي' };
+  let step = 1;
+  const options = (list, current) => list.map((o) => `<option value="${o}" ${o === current ? 'selected' : ''}>${o}</option>`).join('');
+  function draw() {
+    let body = '';
+    if (step === 1) {
+      body = `
+        <p style="text-align:center;color:var(--muted);font-size:14px">الخطوة ١ من ٣ — من نحن؟</p>
+        <label>الاسم الأول</label>
+        <input id="firstName" type="text" placeholder="الاسم الحقيقي (لن يظهر)" />
+        <label>اسم العائلة</label>
+        <input id="familyName" type="text" placeholder="اسم العائلة الحقيقي (لن يظهر)" />
+        <label>اسم الظهور</label>
+        <input id="name" type="text" placeholder="الاسم الذي يظهر للآخرين" />
+        <label>سنة الميلاد</label>
+        <input id="birthYear" type="number" placeholder="مثال: 1995" min="1948" max="2008" />
+        <label>الجنس</label>
+        <select id="gender"><option value="male" selected>ذكر</option><option value="female">أنثى</option></select>
+        <label>أنا أبحث عن</label>
+        <select id="seeking"><option value="شريكة" selected>شريكة</option><option value="شريك">شريك</option></select>
+        <label>الحساب لصالح</label>
+        <select id="profileFor">${options(['نفسي', 'أحد من عائلتي', 'أحد من أصدقائي'], 'نفسي')}</select>
+      `;
+    } else if (step === 2) {
+      body = `
+        <p style="text-align:center;color:var(--muted);font-size:14px">الخطوة ٢ من ٣ — من أين أنت؟</p>
+        <label>الدولة</label>
+        <select id="country">${options(REG_COUNTRY, 'مصر')}</select>
+        <label>الجنسية</label>
+        <select id="nationality">${options(REG_NATIONALITY, 'مصري')}</select>
+        <label>المحافظة</label>
+        <select id="governorate">${options(REG_GOVERNORATE, 'القاهرة')}</select>
+        <label>المدينة</label>
+        <select id="city">${options(REG_CITY, 'القاهرة')}</select>
+      `;
+    } else {
+      body = `
+        <p style="text-align:center;color:var(--muted);font-size:14px">الخطوة ٣ من ٣ — عملك وتعليمك</p>
+        <label>المهنة</label>
+        <select id="profession">${options(REG_PROFESSION, '')}</select>
+        <label>المؤهل الدراسي</label>
+        <select id="education">${options(REG_EDUCATION, '')}</select>
+        <label>رقم الهاتف</label>
+        <input id="phone" type="tel" placeholder="01xxxxxxxx" />
+        <label>البريد الإلكتروني</label>
+        <input id="email" type="email" placeholder="example@domain.com" />
+      `;
+    }
+    app.innerHTML = `
+      <div class="card">
+        ${brandHeader()}
+        <h1>إنشاء حساب</h1>
+        <div style="display:flex;gap:4px;margin-bottom:16px">
+          ${[1, 2, 3].map((s) => `<div style="flex:1;height:4px;border-radius:2px;background:${s <= step ? 'var(--accent)' : 'var(--border)'}"></div>`).join('')}
+        </div>
+        ${body}
+        <div style="display:flex;gap:8px">
+          ${step > 1 ? `<button class="secondary" id="backBtn" style="margin-top:12px">السابق</button>` : ''}
+          ${step < 3 ? `<button id="nextBtn" style="margin-top:12px">التالي</button>` : `<button id="registerBtn" style="margin-top:12px">إنشاء حسابي</button>`}
+        </div>
+        <div id="error"></div>
+        <p style="text-align:center;margin-top:16px"><a href="#" id="toLogin">لديك حساب؟ ادخل</a></p>
+      </div>
+    `;
+    el('toLogin').addEventListener('click', (e) => { e.preventDefault(); renderLogin(); });
+    if (step === 1) {
+      el('seeking').addEventListener('change', (e) => { reg.seeking = e.target.value; });
+      el('profileFor').addEventListener('change', (e) => { reg.profileFor = e.target.value; });
+    }
+    const nextBtn = el('nextBtn');
+    if (nextBtn) nextBtn.addEventListener('click', () => {
+      if (step === 1 && !el('name').value.trim()) { showError(el('error'), { message: 'أدخل اسم الظهور أولًا' }); return; }
+      step++;
+      draw();
+    });
+    const backBtn = el('backBtn');
+    if (backBtn) backBtn.addEventListener('click', () => { step--; draw(); });
+    const registerBtn = el('registerBtn');
+    if (registerBtn) registerBtn.addEventListener('click', async () => {
+      const fields = {
+        first_name: el('firstName').value.trim(),
+        family_name: el('familyName').value.trim(),
+        birth_year: el('birthYear').value.trim(),
+        seeking: reg.seeking,
+        profile_for: reg.profileFor,
+        country: el('country').value,
+        nationality: el('nationality').value,
+        governorate: el('governorate').value,
+        city: el('city').value,
+        profession: el('profession').value,
+        education: el('education').value,
+      };
+      const payload = {
+        name: el('name').value.trim(),
+        gender: el('gender').value,
+        phone: el('phone').value.trim(),
+        email: el('email').value.trim(),
+        fields,
+      };
+      try {
+        const data = await api('/api/auth/register', 'POST', payload);
+        state.phone = payload.phone;
+        renderVerify(data.dev?.otp);
+      } catch (err) { showError(el('error'), err); }
+    });
+  }
+  draw();
 }
 
 function renderVerify(hint) {
   const app = el('app');
   app.innerHTML = `
     <div class="card">
+      ${brandHeader()}
       <h1>رمز التحقق</h1>
-      <p>أدخل الرمز المرسل إلى ${state.phone}</p>
+      <p>أدخل الرمز المرسل إلى بريدك الإلكتروني (تحقق من صندوق الوارد والبريد المزعج)</p>
       ${hint ? `<p class="badge">رمز التجربة: ${hint}</p>` : ''}
       <input id="code" type="text" placeholder="الرمز" />
       <button id="verifyBtn">تحقق</button>
@@ -304,11 +404,13 @@ async function renderProfile() {
       </div>
       <div class="card">
         <h3>تعديل البيانات</h3>
-        ${fieldEditor('age', 'العمر', 'number', fields.age)}
-        ${fieldEditor('city', 'المدينة', 'select', fields.city, ['القاهرة','الجيزة','الإسكندرية','المنصورة','طنطا'])}
-        ${fieldEditor('nationality', 'الجنسية', 'select', fields.nationality, ['مصري','سعودي','إماراتي','أردني','لبناني','أخرى'])}
-        ${fieldEditor('profession', 'المهنة', 'select', fields.profession, ['هندسة','تعليم','طب','تجارة','محاسبة','تقنية'])}
-        ${fieldEditor('education', 'التعليم', 'select', fields.education, ['ثانوية','دبلوم','بكالوريوس','ماجستير','دكتوراه'])}
+        ${fieldEditor('birth_year', 'سنة الميلاد', 'number', fields.birth_year)}
+        ${fieldEditor('country', 'الدولة', 'select', fields.country, REG_COUNTRY)}
+        ${fieldEditor('governorate', 'المحافظة', 'select', fields.governorate, REG_GOVERNORATE)}
+        ${fieldEditor('city', 'المدينة', 'select', fields.city, REG_CITY)}
+        ${fieldEditor('nationality', 'الجنسية', 'select', fields.nationality, REG_NATIONALITY)}
+        ${fieldEditor('profession', 'المهنة', 'select', fields.profession, REG_PROFESSION)}
+        ${fieldEditor('education', 'المؤهل الدراسي', 'select', fields.education, REG_EDUCATION)}
         ${fieldEditor('religiosity', 'الالتزام الديني', 'select', fields.religiosity, ['ملتزم','متوسط','مرن'])}
         ${fieldEditor('lifestyle', 'نمط الحياة', 'select', fields.lifestyle, ['هادئ','منتظم','اجتماعي'])}
         ${fieldEditor('height', 'الطول (سم)', 'number', fields.height)}
@@ -329,7 +431,7 @@ async function renderProfile() {
       });
     }
     el('saveProfile').addEventListener('click', async () => {
-      const keys = ['age','city','nationality','profession','education','religiosity','lifestyle','height','bio'];
+      const keys = ['birth_year','country','governorate','city','nationality','profession','education','religiosity','lifestyle','height','bio'];
       const updates = [];
       for (const key of keys) {
         const input = el('field-' + key);
@@ -345,7 +447,7 @@ async function renderProfile() {
 
 function verificationCard(ver) {
   if (ver.verified) {
-    return `<div class="card"><h3>التوثيق</h3><p class="badge">موثق — الحساب موثوق من إدارة وصلة</p></div>`;
+    return `<div class="card"><h3>التوثيق</h3><p class="badge">موثق — الحساب موثوق من إدارة وصلــه</p></div>`;
   }
   const status = ver.request?.status;
   const pending = status === 'pending' ? '<p class="badge">طلبك قيد المراجعة</p>' : '';
@@ -353,7 +455,7 @@ function verificationCard(ver) {
   return `
     <div class="card">
       <h3>التوثيق</h3>
-      <p style="font-size:14px;color:var(--muted)">وثّق حسابك بطلب مراجعة من إدارة وصلة لتحصل على شارة التوثيق وثقة أعلى.</p>
+      <p style="font-size:14px;color:var(--muted)">وثّق حسابك بطلب مراجعة من إدارة وصلــه لتحصل على شارة التوثيق وثقة أعلى.</p>
       ${pending}
       ${rejected}
       ${status !== 'pending' ? `<button id="requestVerification">طلب التوثيق</button>` : ''}

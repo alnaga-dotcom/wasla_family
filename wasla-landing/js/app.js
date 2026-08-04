@@ -125,14 +125,14 @@ function updateFitResult() {
   const title = fitResult.querySelector('strong');
   const text = fitResult.querySelector('span');
   if (selected >= 3) {
-    title.textContent = 'وصلة صُممت من أجلك';
-    text.textContent = 'أنت قريب جدًا من فلسفة وصلة وتجربتها الجادة.';
+    title.textContent = 'وصلــه صُممت من أجلك';
+    text.textContent = 'أنت قريب جدًا من فلسفة وصلــه وتجربتها الجادة.';
   } else if (selected === 2) {
     title.textContent = 'هناك توافق واضح';
     text.textContent = 'استكشف المنصة وتعرّف أكثر على الخصوصية والتوافق.';
   } else {
     title.textContent = 'اختر ما يعبّر عنك';
-    text.textContent = 'كل اختيار يساعدك على معرفة مدى مناسبة وصلة لك.';
+    text.textContent = 'كل اختيار يساعدك على معرفة مدى مناسبة وصلــه لك.';
   }
 }
 fitInputs.forEach((input) => input.addEventListener('change', updateFitResult));

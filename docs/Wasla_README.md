@@ -1,4 +1,4 @@
-# Wasla (وصلة) – Documentation Index
+# Wasla (وصلــه) – Documentation Index
 
 Wasla is an intelligent matchmaking platform that helps people find compatible life partners.
 

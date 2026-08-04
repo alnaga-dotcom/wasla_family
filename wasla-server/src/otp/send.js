@@ -17,7 +17,7 @@ async function sendTwilio({ phone, code }) {
   const { default: twilio } = await import('twilio');
   const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
   const message = await client.messages.create({
-    body: `رمز التحقق الخاص بك في وصلة: ${code} (صالح لمدة ${OTP_EXPIRY_SECONDS} ثانية)`,
+    body: `رمز التحقق الخاص بك في وصلــه: ${code} (صالح لمدة ${OTP_EXPIRY_SECONDS} ثانية)`,
     from: process.env.TWILIO_PHONE_NUMBER,
     to: normalizePhoneForSms(phone),
   });
@@ -44,11 +44,11 @@ async function sendEmail({ email, code }) {
     socketTimeout: 30000,
   });
   await transporter.sendMail({
-    from: `"وصلة" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
+    from: `"وصلــه" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
     to: email,
-    subject: 'رمز التحقق الخاص بك في وصلة',
+    subject: 'رمز التحقق الخاص بك في وصلــه',
     text: `رمز التحقق: ${code}\nصالح لمدة ${OTP_EXPIRY_SECONDS} ثانية.`,
-    html: `<p>رمز التحقق الخاص بك في <strong>وصلة</strong>:</p><h1 style="direction:rtl;letter-spacing:4px">${code}</h1><p>صالح لمدة ${OTP_EXPIRY_SECONDS} ثانية.</p>`,
+    html: `<p>رمز التحقق الخاص بك في <strong>وصلــه</strong>:</p><h1 style="direction:rtl;letter-spacing:4px">${code}</h1><p>صالح لمدة ${OTP_EXPIRY_SECONDS} ثانية.</p>`,
   });
   logger.info('Email OTP sent', { to: email });
   return { ok: true, channel: 'email' };

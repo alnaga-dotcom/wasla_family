@@ -37,6 +37,10 @@ function profileFields(userId) {
   const rows = db.prepare('SELECT field_key, value FROM profile_fields WHERE user_id = ?').all(userId);
   const map = {};
   rows.forEach((r) => { map[r.field_key] = r.value; });
+  if (map.birth_year) {
+    const by = Number(map.birth_year);
+    if (Number.isFinite(by)) map.age = String(new Date().getFullYear() - by);
+  }
   return map;
 }
 

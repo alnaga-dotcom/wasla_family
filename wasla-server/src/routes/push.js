@@ -24,8 +24,8 @@ router.post('/test', authRequired, async (req, res) => {
   }
   const result = await sendPush({
     token: user.push_token,
-    title: 'وصلة',
-    body: 'هذا إشعار تجريبي من وصلة',
+    title: 'وصلــه',
+    body: 'هذا إشعار تجريبي من وصلــه',
     data: { type: 'test', userId: String(req.userId) },
   });
   res.json(result);

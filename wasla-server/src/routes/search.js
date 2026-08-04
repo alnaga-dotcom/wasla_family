@@ -6,7 +6,7 @@ import { FIELD_SPECS } from '../fields.js';
 
 const router = Router();
 
-const SEARCHABLE = ['city', 'education', 'religiosity', 'lifestyle', 'profession', 'nationality'];
+const SEARCHABLE = ['city', 'governorate', 'education', 'religiosity', 'lifestyle', 'profession', 'nationality'];
 
 // GET /api/search?q=&city=&education=&religiosity=&lifestyle=&profession=&nationality=&ageMin=&ageMax=&heightMin=&heightMax=&page=&limit=
 router.get('/search', authRequired, (req, res) => {

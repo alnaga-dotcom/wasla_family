@@ -2,13 +2,17 @@ import { db } from './db.js';
 import { completionFor } from './fields.js';
 import { trustLevel } from './trust.js';
 
-export const CARD_KEYS = ['age', 'city', 'profession', 'education', 'religiosity', 'lifestyle', 'nationality', 'height', 'health', 'photo_done', 'selfie_done'];
+export const CARD_KEYS = ['birth_year', 'city', 'profession', 'education', 'religiosity', 'lifestyle', 'nationality', 'governorate', 'country', 'height', 'health', 'photo_done', 'selfie_done'];
 
 export function profileFields(userId) {
   const map = {};
   db.prepare('SELECT field_key, value FROM profile_fields WHERE user_id = ?')
     .all(userId)
     .forEach((r) => { map[r.field_key] = r.value; });
+  if (map.birth_year) {
+    const by = Number(map.birth_year);
+    if (Number.isFinite(by)) map.age = String(new Date().getFullYear() - by);
+  }
   return map;
 }
 
@@ -22,6 +26,7 @@ export function publicCard(userId) {
     if (k === 'health') return; // حساس — لا يُعرض أبدًا في نتائج الاكتشاف/البحث
     if (fields[k] !== undefined) card[k] = fields[k];
   });
+  if (fields.age !== undefined) card.age = fields.age; // مشتق من سنة الميلاد — للفلترة فقط
   card.hasPhoto = fields.photo_done === '1';
   card.isVerified = !!u.verified_at;
   card.trustLevel = trustLevel(userId);
