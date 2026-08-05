@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="utf-8" />
@@ -15,10 +15,10 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Inter:wght@500;600;700;800&display=swap" rel="stylesheet">
 
-  <link rel="stylesheet" href="css/variables.css" />
-  <link rel="stylesheet" href="css/reset.css" />
-  <link rel="stylesheet" href="css/main.css" />
-  <link rel="stylesheet" href="css/responsive.css" />
+  <link rel="stylesheet" href="css/variables.css?v=8" />
+  <link rel="stylesheet" href="css/reset.css?v=8" />
+  <link rel="stylesheet" href="css/main.css?v=8" />
+  <link rel="stylesheet" href="css/responsive.css?v=8" />
 </head>
 <body>
   <div class="scroll-progress" aria-hidden="true"><span></span></div>
@@ -41,6 +41,7 @@
         <a href="#plans">العضوية</a>
         <a href="#security">الأمان</a>
         <a href="#faq">الأسئلة الشائعة</a>
+        <a href="/blog.html">المدونة</a>
       </nav>
 
       <div class="header-actions">
@@ -574,13 +575,17 @@
         <a href="#how">كيف تعمل</a>
         <a href="#why">لماذا وصلــه</a>
         <a href="#plans">العضوية</a>
+        <a href="/blog.html">المدونة</a>
+        <a href="/guide.html">دليل المستخدم</a>
       </div>
 
       <div>
         <h3>المساعدة</h3>
         <a href="#faq">الأسئلة الشائعة</a>
         <a href="#security">الأمان والخصوصية</a>
-        <a href="#top">تواصل معنا</a>
+        <a href="/privacy.html">سياسة الخصوصية</a>
+        <a href="/terms.html">شروط الاستخدام</a>
+        <a href="/feedback.html">اقتراحات وشكاوى</a>
       </div>
 
       <div>
@@ -598,7 +603,7 @@
 
     <div class="container footer-bottom">
       <small>© ٢٠٢٦ WASLA. جميع الحقوق محفوظة.</small>
-      <div><a href="#">سياسة الخصوصية</a><a href="#">شروط الاستخدام</a></div>
+      <div><a href="/privacy.html">سياسة الخصوصية</a><a href="/terms.html">شروط الاستخدام</a></div>
     </div>
   </footer>
 
@@ -651,7 +656,7 @@
     let APP_URL = 'http://127.0.0.1:8081';
     async function loadConfig() {
       try {
-        const res = await fetch('/config.json');
+        const res = await fetch('/config.json?v=8');
         if (res.ok) {
           const cfg = await res.json();
           if (cfg.apiBase) API_BASE = cfg.apiBase;
@@ -747,6 +752,6 @@
       setInterval(ping, 4 * 60 * 1000);
     }
   </script>
-  <script src="js/app.js"></script>
+  <script src="js/app.js?v=8"></script>
 </body>
 </html>
