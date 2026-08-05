@@ -15,10 +15,10 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Inter:wght@500;600;700;800&display=swap" rel="stylesheet">
 
-  <link rel="stylesheet" href="css/variables.css?v=8" />
-  <link rel="stylesheet" href="css/reset.css?v=8" />
-  <link rel="stylesheet" href="css/main.css?v=8" />
-  <link rel="stylesheet" href="css/responsive.css?v=8" />
+  <link rel="stylesheet" href="css/variables.css?v=9" />
+  <link rel="stylesheet" href="css/reset.css?v=9" />
+  <link rel="stylesheet" href="css/main.css?v=9" />
+  <link rel="stylesheet" href="css/responsive.css?v=9" />
 </head>
 <body>
   <div class="scroll-progress" aria-hidden="true"><span></span></div>
@@ -656,7 +656,7 @@
     let APP_URL = 'http://127.0.0.1:8081';
     async function loadConfig() {
       try {
-        const res = await fetch('/config.json?v=8');
+        const res = await fetch('/config.json?v=9');
         if (res.ok) {
           const cfg = await res.json();
           if (cfg.apiBase) API_BASE = cfg.apiBase;
@@ -752,6 +752,6 @@
       setInterval(ping, 4 * 60 * 1000);
     }
   </script>
-  <script src="js/app.js?v=8"></script>
+  <script src="js/app.js?v=9"></script>
 </body>
 </html>
