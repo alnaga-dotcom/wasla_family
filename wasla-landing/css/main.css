@@ -7,9 +7,9 @@
   position: sticky;
   top: 0;
   z-index: 1000;
-  background: linear-gradient(180deg, #FFFDF9, #F6EDDE);
-  box-shadow: 0 6px 24px rgba(74,15,28,.06);
-  border-bottom: 1px solid rgba(194,160,82,.35);
+  background: linear-gradient(180deg, #3A0B15, #2B0710);
+  box-shadow: 0 6px 24px rgba(0,0,0,.28);
+  border-bottom: 1px solid rgba(194,160,82,.4);
   backdrop-filter: blur(10px);
 }
 
@@ -39,7 +39,7 @@
 }
 .main-nav a {
   position: relative;
-  color: var(--burgundy-dark);
+  color: var(--ivory);
   font-size: 18px;
   font-weight: 600;
   transition: color .25s ease;
@@ -81,6 +81,11 @@
   color: var(--burgundy-dark);
 }
 .btn-outline:hover { background: rgba(194,160,82,.12); }
+.site-header .btn-outline {
+  color: var(--gold-light);
+  border-color: var(--gold-antique);
+}
+.site-header .btn-outline:hover { background: rgba(194,160,82,.15); }
 .hero-actions .btn-outline {
   color: var(--burgundy-dark);
   border-color: var(--ivory);
@@ -111,12 +116,12 @@
 .nav-toggle span {
   width: 24px;
   height: 2px;
-  background: var(--burgundy-dark);
+  background: var(--gold-light);
   display: block;
 }
 
 .hero {
-  min-height: 640px;
+  min-height: 460px;
   position: relative;
   overflow: hidden;
   display: grid;
@@ -127,15 +132,8 @@
   position: absolute;
   inset: 0;
   background: url("../assets/images/hero-wasla.jpg") center/cover no-repeat;
-  transform: scale(0.9);
+  transform: scale(1);
   animation: hero-breathe 22s ease-in-out infinite alternate;
-}
-.hero-overlay {
-  position: absolute;
-  inset: 0;
-  background:
-    linear-gradient(90deg, rgba(43,7,16,.70) 0%, rgba(43,7,16,.42) 38%, rgba(43,7,16,.05) 66%, rgba(43,7,16,0) 100%),
-    linear-gradient(180deg, rgba(43,7,16,.06), rgba(43,7,16,.26));
 }
 .hero-content { position: relative; z-index: 2; }
 .hero-eyebrow {
@@ -879,8 +877,8 @@
 }
 
 @keyframes hero-breathe {
-  from { transform: scale(0.9); }
-  to { transform: scale(0.935); }
+  from { transform: scale(1); }
+  to { transform: scale(1.03); }
 }
 @keyframes gold-breathe {
   0%,100% { box-shadow: 0 0 0 rgba(194,160,82,0); }
