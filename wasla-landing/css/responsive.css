@@ -68,14 +68,10 @@
   .hero-copy { margin-top: 90px; }
   .hero p { font-size: 17px; }
   .hero-actions { display: grid; }
-  .hero-stats {
-    grid-template-columns: repeat(3, 1fr);
-    gap: 8px;
-    max-width: 100%;
-  }
-  .hero-stats div { padding: 10px 6px; }
-  .hero-stats strong { font-size: 18px; }
-  .hero-stats span { font-size: 12px; }
+  .stats-grid { grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 28px; }
+  .stat-card { padding: 20px 6px; }
+  .stat-card strong { font-size: 26px; }
+  .stat-card span { font-size: 12px; }
   .section { padding: 72px 0; }
   .feature-grid,
   .steps { grid-template-columns: 1fr; }
