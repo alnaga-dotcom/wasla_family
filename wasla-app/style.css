@@ -139,3 +139,47 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
 .badge-high { background: #E8F5E9; color: var(--success); }
 .badge-medium { background: #FFF3E0; color: #F57C00; }
 .badge-low { background: #FFEBEE; color: var(--danger); }
+
+/* --- Brand auth screens --- */
+.auth-screen { max-width: 480px; margin: 0 auto; }
+.auth-hero {
+  text-align: center;
+  padding: 40px 24px 28px;
+  background:
+    radial-gradient(700px 320px at 50% -20%, rgba(233,212,166,.18), transparent 62%),
+    linear-gradient(180deg, #561624 0%, #4A0F1C 60%, #2B0710 100%);
+  border-radius: 20px;
+  overflow: hidden;
+}
+.auth-hero-compact { padding: 28px 24px 22px; }
+.app-logo {
+  width: 210px;
+  max-width: 72%;
+  height: auto;
+  display: block;
+  margin: 0 auto;
+  filter: drop-shadow(0 10px 22px rgba(0,0,0,.35));
+}
+.auth-hero-tag { color: var(--accent-light); font-size: 15px; margin: 14px 0 0; font-weight: 600; }
+.auth-body { margin-top: 18px; }
+.auth-card { border-radius: 20px; border-top: 3px solid var(--accent); padding: 24px; }
+.auth-title { color: var(--primary-dark); font-size: 24px; font-weight: 800; margin: 0 0 4px; }
+.auth-sub { color: var(--muted); font-size: 14px; margin: 0 0 8px; }
+.auth-switch { text-align: center; color: var(--muted); font-size: 14px; margin: 18px 0 0; }
+.auth-switch a { color: var(--primary); font-weight: 700; text-decoration: none; }
+.auth-nav { display: flex; gap: 10px; margin-top: 16px; }
+.auth-nav button { flex: 1; }
+.btn-primary {
+  background: linear-gradient(135deg, var(--accent), #a8873f);
+  color: var(--primary-dark);
+  font-weight: 800;
+  border: none;
+  box-shadow: 0 6px 16px rgba(74,15,28,.18);
+}
+.btn-primary:hover { filter: brightness(1.06); }
+.btn-ghost { background: var(--card); color: var(--primary); border: 1px solid var(--accent); font-weight: 700; }
+.step-dots { display: flex; gap: 6px; margin: 14px 0 6px; }
+.step-dot { flex: 1; height: 6px; border-radius: 3px; background: var(--border); position: relative; }
+.step-dot span { position: absolute; top: -26px; inset-inline-start: 0; font-size: 12px; font-weight: 800; color: var(--muted); }
+.step-dot.is-active { background: linear-gradient(90deg, var(--accent), #a8873f); }
+.step-dot.is-active span { color: var(--primary); }

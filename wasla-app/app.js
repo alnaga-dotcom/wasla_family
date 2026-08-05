@@ -209,21 +209,28 @@ function showError(container, err) {
 }
 
 function brandHeader() {
-  return `<div class="brand-logo">وصلــه</div>`;
+  return `<img class="app-logo" src="logo.png" alt="وصلــه WASLA" />`;
 }
 
 function renderLogin() {
   const app = el('app');
   app.innerHTML = `
-    <div class="card">
-      ${brandHeader()}
-      <h1>تسجيل الدخول</h1>
-      <p>أدخل رقم هاتفك لإرسال رمز التحقق إلى بريدك الإلكتروني</p>
-      <label>رقم الهاتف</label>
-      <input id="phone" type="tel" placeholder="01xxxxxxxx" />
-      <button id="loginBtn">إرسال رمز التحقق</button>
-      <div id="error"></div>
-      <p style="text-align:center;margin-top:16px"><a href="#" id="toRegister">ليس لديك حساب؟ سجّل</a></p>
+    <div class="auth-screen">
+      <header class="auth-hero">
+        ${brandHeader()}
+        <p class="auth-hero-tag">منصة زواج جاد وآمنة — تبدأ رحلتك بخطوة</p>
+      </header>
+      <div class="auth-body">
+        <div class="card auth-card">
+          <h1 class="auth-title">تسجيل الدخول</h1>
+          <p class="auth-sub">أدخل رقم هاتفك وسنرسل رمز التحقق إلى بريدك الإلكتروني</p>
+          <label>رقم الهاتف</label>
+          <input id="phone" type="tel" placeholder="01xxxxxxxx" />
+          <button class="btn-primary" id="loginBtn">إرسال رمز التحقق</button>
+          <div id="error"></div>
+        </div>
+        <p class="auth-switch">ليس لديك حساب؟ <a href="#" id="toRegister">سجّل الآن</a></p>
+      </div>
     </div>
   `;
   el('toRegister').addEventListener('click', (e) => { e.preventDefault(); renderRegister(); });
@@ -253,7 +260,7 @@ function renderRegister() {
     let body = '';
     if (step === 1) {
       body = `
-        <p style="text-align:center;color:var(--muted);font-size:14px">الخطوة ١ من ٣ — من نحن؟</p>
+        <p class="auth-sub">من نحن؟</p>
         <label>الاسم الأول</label>
         <input id="firstName" type="text" placeholder="الاسم الحقيقي (لن يظهر)" />
         <label>اسم العائلة</label>
@@ -271,7 +278,7 @@ function renderRegister() {
       `;
     } else if (step === 2) {
       body = `
-        <p style="text-align:center;color:var(--muted);font-size:14px">الخطوة ٢ من ٣ — من أين أنت؟</p>
+        <p class="auth-sub">من أين أنت؟</p>
         <label>الدولة</label>
         <select id="country">${options(REG_COUNTRY, 'مصر')}</select>
         <label>الجنسية</label>
@@ -283,7 +290,7 @@ function renderRegister() {
       `;
     } else {
       body = `
-        <p style="text-align:center;color:var(--muted);font-size:14px">الخطوة ٣ من ٣ — عملك وتعليمك</p>
+        <p class="auth-sub">عملك وتواصلك</p>
         <label>المهنة</label>
         <select id="profession"><option value="">اختر المهنة...</option>${options(REG_PROFESSION, '')}</select>
         <div id="professionOtherWrap" style="display:none">
@@ -299,19 +306,23 @@ function renderRegister() {
       `;
     }
     app.innerHTML = `
-      <div class="card">
-        ${brandHeader()}
-        <h1>إنشاء حساب</h1>
-        <div style="display:flex;gap:4px;margin-bottom:16px">
-          ${[1, 2, 3].map((s) => `<div style="flex:1;height:4px;border-radius:2px;background:${s <= step ? 'var(--accent)' : 'var(--border)'}"></div>`).join('')}
+      <div class="auth-screen">
+        <header class="auth-hero auth-hero-compact">${brandHeader()}</header>
+        <div class="auth-body">
+          <div class="card auth-card">
+            <h1 class="auth-title">إنشاء حساب</h1>
+            <div class="step-dots">
+              ${[1, 2, 3].map((s) => `<div class="step-dot ${s <= step ? 'is-active' : ''}"><span>${s}</span></div>`).join('')}
+            </div>
+            ${body}
+            <div class="auth-nav">
+              ${step > 1 ? `<button class="btn-ghost" id="backBtn">السابق</button>` : ''}
+              ${step < 3 ? `<button class="btn-primary" id="nextBtn">التالي</button>` : `<button class="btn-primary" id="registerBtn">إنشاء حسابي</button>`}
+            </div>
+            <div id="error"></div>
+          </div>
+          <p class="auth-switch">لديك حساب؟ <a href="#" id="toLogin">ادخل</a></p>
         </div>
-        ${body}
-        <div style="display:flex;gap:8px">
-          ${step > 1 ? `<button class="secondary" id="backBtn" style="margin-top:12px">السابق</button>` : ''}
-          ${step < 3 ? `<button id="nextBtn" style="margin-top:12px">التالي</button>` : `<button id="registerBtn" style="margin-top:12px">إنشاء حسابي</button>`}
-        </div>
-        <div id="error"></div>
-        <p style="text-align:center;margin-top:16px"><a href="#" id="toLogin">لديك حساب؟ ادخل</a></p>
       </div>
     `;
     el('toLogin').addEventListener('click', (e) => { e.preventDefault(); renderLogin(); });
@@ -405,14 +416,18 @@ function renderRegister() {
 function renderVerify(hint) {
   const app = el('app');
   app.innerHTML = `
-    <div class="card">
-      ${brandHeader()}
-      <h1>رمز التحقق</h1>
-      <p>أدخل الرمز المرسل إلى بريدك الإلكتروني (تحقق من صندوق الوارد والبريد المزعج)</p>
-      ${hint ? `<p class="badge">رمز التجربة: ${hint}</p>` : ''}
-      <input id="code" type="text" placeholder="الرمز" />
-      <button id="verifyBtn">تحقق</button>
-      <div id="error"></div>
+    <div class="auth-screen">
+      <header class="auth-hero auth-hero-compact">${brandHeader()}</header>
+      <div class="auth-body">
+        <div class="card auth-card">
+          <h1 class="auth-title">رمز التحقق</h1>
+          <p class="auth-sub">أدخل الرمز المرسل إلى بريدك الإلكتروني (تحقق من البريد المزعج أيضًا)</p>
+          ${hint ? `<p class="badge">رمز التجربة: ${hint}</p>` : ''}
+          <input id="code" type="text" placeholder="الرمز" />
+          <button class="btn-primary" id="verifyBtn">تحقق</button>
+          <div id="error"></div>
+        </div>
+      </div>
     </div>
   `;
   el('verifyBtn').addEventListener('click', async () => {

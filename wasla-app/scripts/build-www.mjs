@@ -8,7 +8,7 @@ const DST = join(SRC, 'www');
 
 mkdirSync(DST, { recursive: true });
 
-const files = ['index.html', 'app.js', 'style.css', 'manifest.json', 'sw.js', 'icon.svg'];
+const files = ['index.html', 'app.js', 'style.css', 'manifest.json', 'sw.js', 'icon.svg', 'logo.png', 'icon-192.png', 'icon-512.png'];
 for (const f of files) {
   const src = join(SRC, f);
   if (existsSync(src)) copyFileSync(src, join(DST, f));
