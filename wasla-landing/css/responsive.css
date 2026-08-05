@@ -33,13 +33,10 @@
     width: 100%;
     margin-top: 140px;
   }
+  .hero { align-items: flex-start; }
   .hero-content {
-    position: absolute;
-    top: 56px;
-    inset-inline-start: 32px;
-    inset-inline-end: 82px;
-    width: auto;
-    margin: 0;
+    position: static;
+    padding-top: 56px;
   }
   .hero-eyebrow, .hero-title, .hero-desc, .hero-actions, .hero-stats { position: static; }
   .hero-desc { margin-top: 12px; }
