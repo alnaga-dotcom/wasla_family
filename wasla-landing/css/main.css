@@ -116,7 +116,7 @@
 }
 
 .hero {
-  min-height: 920px;
+  min-height: 640px;
   position: relative;
   overflow: hidden;
   display: grid;
@@ -191,6 +191,32 @@
   margin-top: 30px;
   width: fit-content;
 }
+.slogan-section {
+  background:
+    radial-gradient(circle at 12% 18%, rgba(194,160,82,.12), transparent 30%),
+    radial-gradient(circle at 88% 82%, rgba(233,212,166,.18), transparent 32%),
+    linear-gradient(180deg, #FFFDF9, #F6EDDE);
+  border-bottom: 1px solid rgba(194,160,82,.25);
+  text-align: center;
+  padding: 48px 0 56px;
+}
+.slogan-section .hero-eyebrow { position: static; top: auto; margin-inline: auto; color: var(--gold-antique); }
+.slogan-section .hero-title { position: static; top: auto; max-width: none; margin-inline: auto; text-align: center; }
+.slogan-section .hero-title em { color: var(--burgundy); }
+.slogan-section .hero-desc { position: static; top: auto; max-width: 620px; margin-inline: auto; color: #6E514A; }
+.slogan-section .hero-actions { position: static; top: auto; width: auto; justify-content: center; margin-top: 26px; }
+.slogan-section .hero-actions .btn-outline {
+  border-color: var(--gold-antique);
+  background: transparent;
+  color: var(--burgundy-dark);
+}
+.slogan-section .hero-actions .btn-outline:hover { background: rgba(194,160,82,.12); }
+.slogan-section .hero-actions .btn-ghost {
+  border-color: rgba(107,29,42,.35);
+  color: var(--burgundy-dark);
+  background: transparent;
+}
+.slogan-section .hero-actions .btn-ghost:hover { background: rgba(194,160,82,.1); }
 .stats-section { background: var(--section-gradient); }
 .stats-grid {
   display: grid;
