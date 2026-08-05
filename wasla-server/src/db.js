@@ -358,6 +358,34 @@ db.exec(`
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
   CREATE INDEX IF NOT EXISTS idx_ver_req_user ON verification_requests(user_id, status);
+
+  CREATE TABLE IF NOT EXISTS posts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    slug TEXT NOT NULL UNIQUE,
+    title TEXT NOT NULL,
+    category TEXT NOT NULL DEFAULT 'announcement' CHECK (category IN ('story','announcement','thread')),
+    excerpt TEXT,
+    body TEXT NOT NULL,
+    cover_url TEXT,
+    author TEXT,
+    status TEXT NOT NULL DEFAULT 'published' CHECK (status IN ('published','draft')),
+    published_at TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_posts_status ON posts(status, published_at DESC);
+
+  CREATE TABLE IF NOT EXISTS feedback (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER REFERENCES users(id),
+    name TEXT,
+    contact TEXT,
+    category TEXT NOT NULL DEFAULT 'other' CHECK (category IN ('suggestion','complaint','other')),
+    message TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'new' CHECK (status IN ('new','open','closed')),
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_feedback_status ON feedback(status, created_at DESC);
 `);
 
 // ترحيلات تدرجية — حقول جديدة فوق الجداول القائمة

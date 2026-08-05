@@ -23,6 +23,7 @@ import verificationRoutes from './routes/verification.js';
 import photoRoutes from './routes/photos.js';
 import adminRoutes from './routes/admin.js';
 import publicRoutes from './routes/public.js';
+import { contentPublicRouter, contentAdminRouter } from './routes/content.js';
 import { db } from './db.js';
 import { purgeExpired } from './account.js';
 import { initPush } from './push.js';
@@ -100,7 +101,9 @@ app.use('/api', subscriptionRoutes);
 app.use('/api', verificationRoutes);
 app.use('/api', photoRoutes);
 app.use('/api/public', publicRoutes);
+app.use('/api/public', contentPublicRouter);
 app.use('/admin', adminRoutes);
+app.use('/admin', contentAdminRouter);
 
 app.use((req, res) => apiError(res, 404, 'NOT_FOUND', 'المسار غير موجود'));
 
