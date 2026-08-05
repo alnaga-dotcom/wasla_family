@@ -11,11 +11,14 @@ import {
   canViewPhoto,
   photoUrl,
   getUserActivePhoto,
-  markProfilePhotoDone,
-  markSelfieDone,
+  getLatestPhoto,
+  approvePhoto,
+  rejectPhoto,
   deletePhoto,
   getMaxSize,
   isAllowedFile,
+  evaluateImage,
+  markSelfieDone,
 } from '../uploads.js';
 import { publish } from '../events.js';
 
@@ -29,24 +32,35 @@ const upload = multer({
   },
 });
 
-// POST /api/profile/photo — upload profile photo
-router.post('/profile/photo', authRequired, upload.single('photo'), (req, res) => {
+// POST /api/profile/photo — upload profile photo (goes to moderation review)
+router.post('/profile/photo', authRequired, upload.single('photo'), async (req, res) => {
   const file = req.file;
   if (!file) return apiError(res, 422, 'INVALID_FILE', 'ملف الصورة غير صالح أو مفقود', 'photo');
   const result = storePhoto(req.userId, 'profile', file);
   if (!result.ok) return apiError(res, 422, result.code, result.detail || 'فشل رفع الصورة', 'photo', result);
-  markProfilePhotoDone(req.userId);
-  const trustLevel = updateUserTrustLevel(req.userId);
+
+  // Future AI seam: auto-approve/reject obvious cases; today the stub always sends to the human queue.
+  const verdict = await evaluateImage(file);
+  if (verdict.verdict === 'approve') {
+    approvePhoto(result.id, null);
+    publish('ProfilePhotoApproved', { photoId: result.id }, 'api', { userId: req.userId, entityType: 'photo', entityId: String(result.id) });
+    return res.status(201).json({ ok: true, photoId: result.id, status: 'approved', url: photoUrl(result) });
+  }
+  if (verdict.verdict === 'reject') {
+    rejectPhoto(result.id, null, verdict.reasons.join(', '));
+    return apiError(res, 422, 'PHOTO_REJECTED', 'الصورة لا تستوفي شروط النشر — جرّب صورة أخرى', 'photo');
+  }
+
   publish('ProfilePhotoUploaded', { photoId: result.id }, 'api', { userId: req.userId, entityType: 'photo', entityId: String(result.id) });
-  res.status(201).json({ ok: true, photoId: result.id, url: photoUrl(result), trustLevel });
+  res.status(201).json({ ok: true, photoId: result.id, status: 'pending', url: photoUrl(result) });
 });
 
-// GET /api/profile/photos — list my active photos
+// GET /api/profile/photos — list my photos with review state
 router.get('/profile/photos', authRequired, (req, res) => {
-  const profile = getUserActivePhoto(req.userId, 'profile');
+  const profile = getLatestPhoto(req.userId, 'profile');
   const selfie = getUserActivePhoto(req.userId, 'selfie');
   res.json({
-    profile: profile ? { id: profile.id, url: photoUrl(profile) } : null,
+    profile: profile ? { id: profile.id, url: photoUrl(profile), reviewStatus: profile.review_status } : null,
     selfie: selfie ? { id: selfie.id, url: photoUrl(selfie) } : null,
   });
 });

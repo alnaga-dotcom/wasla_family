@@ -1,7 +1,7 @@
 import { mkdirSync, existsSync, readFileSync, writeFileSync, unlinkSync } from 'node:fs';
 import { extname, join } from 'node:path';
 import { randomBytes } from 'node:crypto';
-import { db } from './db.js';
+import { db, nowIso } from './db.js';
 import { config } from './config.js';
 
 mkdirSync(config.uploadsDir, { recursive: true });
@@ -35,25 +35,37 @@ export function storePhoto(userId, kind, file) {
   const name = `${kind}_${randomBytes(16).toString('hex')}${ext}`;
   const path = join(config.uploadsDir, name);
   try {
-    // Optional: simple dimension check for images
     writeFileSync(path, file.buffer);
   } catch (e) {
     return { ok: false, code: 'WRITE_FAILED', detail: e.message };
   }
 
-  // Mark any previous same-kind photo as deleted
-  db.prepare("UPDATE user_photos SET status = 'deleted' WHERE user_id = ? AND kind = ? AND status = 'active'").run(userId, kind);
+  if (kind === 'profile') {
+    // Avatar moderation: new upload goes to review; only ONE pending at a time,
+    // and the current approved avatar stays visible until the new one is approved.
+    db.prepare("UPDATE user_photos SET status = 'deleted' WHERE user_id = ? AND kind = 'profile' AND review_status = 'pending'").run(userId);
+    const r = db.prepare(
+      `INSERT INTO user_photos (user_id, kind, filename, original_name, mime_type, size_bytes, review_status)
+       VALUES (?, ?, ?, ?, ?, ?, 'pending')`
+    ).run(userId, kind, name, file.originalname || name, mime, file.size);
+    return { ok: true, id: Number(r.lastInsertRowid), filename: name, path, pending: true };
+  }
 
+  // Selfie: unchanged — private, no moderation queue.
+  db.prepare("UPDATE user_photos SET status = 'deleted' WHERE user_id = ? AND kind = ? AND status = 'active'").run(userId, kind);
   const r = db.prepare(
     `INSERT INTO user_photos (user_id, kind, filename, original_name, mime_type, size_bytes)
      VALUES (?, ?, ?, ?, ?, ?)`
   ).run(userId, kind, name, file.originalname || name, mime, file.size);
-
-  return { ok: true, id: Number(r.lastInsertRowid), filename: name, path };
+  return { ok: true, id: Number(r.lastInsertRowid), filename: name, path, pending: false };
 }
 
 export function getPhotoById(id) {
   return db.prepare('SELECT * FROM user_photos WHERE id = ? AND status = ?').get(id, 'active');
+}
+
+export function getPhotoByIdRaw(id) {
+  return db.prepare('SELECT * FROM user_photos WHERE id = ?').get(id);
 }
 
 export function getPhotoByFilename(filename) {
@@ -64,6 +76,46 @@ export function getUserActivePhoto(userId, kind) {
   return db.prepare('SELECT * FROM user_photos WHERE user_id = ? AND kind = ? AND status = ? ORDER BY id DESC LIMIT 1').get(userId, kind, 'active');
 }
 
+// Latest photo of a kind regardless of review state — used so the owner can see their pending avatar.
+export function getLatestPhoto(userId, kind) {
+  return db.prepare('SELECT * FROM user_photos WHERE user_id = ? AND kind = ? AND status = ? ORDER BY id DESC LIMIT 1').get(userId, kind, 'active');
+}
+
+export function getPendingPhotos(status = 'pending', limit = 200) {
+  return db.prepare(
+    `SELECT p.*, u.name AS user_name, u.phone AS user_phone
+     FROM user_photos p JOIN users u ON u.id = p.user_id
+     WHERE p.review_status = ?
+     ORDER BY p.id DESC LIMIT ?`
+  ).all(status, limit);
+}
+
+export function approvePhoto(photoId, adminId) {
+  const photo = getPhotoByIdRaw(photoId);
+  if (!photo || photo.review_status !== 'pending') return { ok: false, code: 'NOT_PENDING' };
+  // Exactly one approved avatar: retire the previously approved one.
+  db.prepare("UPDATE user_photos SET status = 'deleted' WHERE user_id = ? AND kind = ? AND review_status = 'approved'").run(photo.user_id, photo.kind);
+  db.prepare(`UPDATE user_photos SET review_status = 'approved', reviewed_by = ?, reviewed_at = ?, review_reason = NULL WHERE id = ?`)
+    .run(adminId || null, nowIso(), photoId);
+  if (photo.kind === 'profile') markProfilePhotoDone(photo.user_id);
+  return { ok: true, userId: photo.user_id, kind: photo.kind };
+}
+
+export function rejectPhoto(photoId, adminId, reason) {
+  const photo = getPhotoByIdRaw(photoId);
+  if (!photo || photo.review_status !== 'pending') return { ok: false, code: 'NOT_PENDING' };
+  db.prepare(`UPDATE user_photos SET status = 'deleted', review_status = 'rejected', reviewed_by = ?, reviewed_at = ?, review_reason = ? WHERE id = ?`)
+    .run(adminId || null, nowIso(), String(reason || '').slice(0, 500) || null, photoId);
+  try { unlinkSync(join(config.uploadsDir, photo.filename)); } catch {}
+  return { ok: true, userId: photo.user_id, kind: photo.kind };
+}
+
+// Future AI image filter seam: swap this stub for a vision API (NSFW/quality) later.
+// Verdict: 'approve' | 'reject' | 'review'. 'review' routes to the human queue.
+export async function evaluateImage(file) {
+  return { verdict: 'review', score: 0, reasons: [] };
+}
+
 export function readPhotoFile(filename) {
   const path = join(config.uploadsDir, filename);
   if (!existsSync(path)) return null;
@@ -72,17 +124,26 @@ export function readPhotoFile(filename) {
 
 export function deletePhoto(userId, kind) {
   const photo = getUserActivePhoto(userId, kind);
-  if (!photo) return { ok: false, code: 'NOT_FOUND' };
-  db.prepare("UPDATE user_photos SET status = 'deleted' WHERE id = ?").run(photo.id);
-  try { unlinkSync(join(config.uploadsDir, photo.filename)); } catch {}
+  if (photo) {
+    db.prepare("UPDATE user_photos SET status = 'deleted' WHERE id = ?").run(photo.id);
+    try { unlinkSync(join(config.uploadsDir, photo.filename)); } catch {}
+  }
+  const pending = db.prepare("SELECT * FROM user_photos WHERE user_id = ? AND kind = ? AND status = 'active' AND review_status = 'pending' ORDER BY id DESC LIMIT 1").get(userId, kind);
+  if (pending) {
+    db.prepare("UPDATE user_photos SET status = 'deleted' WHERE id = ?").run(pending.id);
+    try { unlinkSync(join(config.uploadsDir, pending.filename)); } catch {}
+  }
   return { ok: true };
 }
 
 export function canViewPhoto(photo, viewerId, viewerRole) {
   if (!photo || photo.status !== 'active') return false;
-  if (viewerRole === 'admin' || viewerRole === 'super_admin') return true;
+  const isStaff = viewerRole === 'admin' || viewerRole === 'super_admin';
+  if (isStaff) return true;
   if (photo.user_id === viewerId) return true;
-  // Profile photos: visible inside platform to active users; selfie is private to owner/admin.
+  // Pending avatars are not visible to anyone but the owner/admins until approved.
+  if (photo.review_status !== 'approved') return false;
+  // Selfie is private to owner/admin.
   if (photo.kind === 'selfie') return false;
   return true;
 }

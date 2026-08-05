@@ -514,6 +514,15 @@ function isEmailGate(err) {
   return err?.status === 403 && err?.data?.code === 'EMAIL_VERIFICATION_REQUIRED';
 }
 
+async function authImageUrl(url) {
+  if (!url) return null;
+  try {
+    const res = await fetch(API_BASE + url, { headers: { Authorization: 'Bearer ' + state.token } });
+    if (!res.ok) return null;
+    return URL.createObjectURL(await res.blob());
+  } catch { return null; }
+}
+
 function renderEmailVerify(onVerified) {
   const app = el('app');
   app.innerHTML = `
@@ -581,10 +590,12 @@ function verificationCard(ver) {
 }
 
 function photoUploader(kind, label, photo) {
+  const pending = photo && photo.reviewStatus === 'pending' ? '<p class="badge">قيد المراجعة — سيظهر بعد موافقة الإدارة</p>' : '';
   const preview = photo ? `<img src="${photo.url}" style="width:120px;height:120px;object-fit:cover;border-radius:12px;margin:8px 0" alt="${label}" />` : '';
   return `
     <div style="margin-bottom:16px">
       <label>${label}</label>
+      ${pending}
       <div id="${kind}-preview">${preview}</div>
       <input type="file" id="${kind}-input" accept="image/png,image/jpeg" style="margin-top:8px" />
       <button id="${kind}-upload" style="margin-top:8px">رفع ${label}</button>
@@ -632,8 +643,10 @@ async function renderDiscovery() {
       return;
     }
     const c = candidates[0];
+    const avatar = await authImageUrl(c.photo);
     app.innerHTML = `
       <div class="card candidate">
+        ${avatar ? `<img src="${avatar}" style="width:120px;height:120px;object-fit:cover;border-radius:50%;margin:0 auto 8px;display:block" alt="صورة رمزية" />` : ''}
         <h2>${c.name || 'عضو'}</h2>
         <p class="badge badge-${c.matchLevel}">توافق ${c.matchScore}%</p>
         <p>${c.reasons?.join(' · ') || ''}</p>
@@ -887,6 +900,7 @@ async function renderAdmin() {
         <button class="secondary" data-admin="verification">التوثيق</button>
         <button class="secondary" data-admin="reports">البلاغات</button>
         <button class="secondary" data-admin="moderation">الإشراف</button>
+        <button class="secondary" data-admin="photos">الصور</button>
         <button class="secondary" data-admin="subscriptions">الاشتراكات</button>
         <button class="secondary" data-admin="users">المستخدمين</button>
         <button class="secondary" data-admin="audit">سجل المراجعة</button>
@@ -909,6 +923,7 @@ async function renderAdminSection() {
     else if (adminSection === 'verification') await renderAdminVerification(container);
     else if (adminSection === 'reports') await renderAdminReports(container);
     else if (adminSection === 'moderation') await renderAdminModeration(container);
+    else if (adminSection === 'photos') await renderAdminPhotos(container);
     else if (adminSection === 'subscriptions') await renderAdminSubscriptions(container);
     else if (adminSection === 'users') await renderAdminUsers(container);
     else if (adminSection === 'audit') await renderAdminAudit(container);
@@ -1064,6 +1079,39 @@ async function renderAdminModeration(container) {
       const action = btn.dataset.action === 'mod-approve' ? 'approve' : 'reject';
       try {
         await api(`/admin/moderation/${btn.dataset.id}/resolve`, 'POST', { action, reason: 'تم من لوحة الإدارة' });
+        renderAdminSection();
+      } catch (err) { showError(container, err); }
+    });
+  });
+}
+
+async function renderAdminPhotos(container) {
+  const data = await api('/admin/photos?status=pending');
+  const rows = data.items || [];
+  if (rows.length === 0) { container.innerHTML = adminCard('مراجعة الصور', '<p>لا توجد صور بانتظار المراجعة.</p>'); return; }
+  container.innerHTML = adminCard('مراجعة الصور', rows.map((p) => `
+    <div class="match-row" style="align-items:flex-start">
+      <div style="text-align:center">
+        <img id="pimg-${p.id}" src="/svg-loader.svg" style="width:90px;height:90px;object-fit:cover;border-radius:12px" alt="صورة" />
+        <br><small>#${p.id} — ${p.userName} (${p.userPhone})</small>
+      </div>
+      <div>
+        <button class="secondary" data-paction="approve" data-id="${p.id}">موافقة</button>
+        <button class="danger" data-paction="reject" data-id="${p.id}">رفض</button>
+      </div>
+    </div>
+  `).join(''));
+  for (const p of rows) {
+    const src = await authImageUrl(p.url);
+    const img = el('pimg-' + p.id);
+    if (img && src) img.src = src;
+  }
+  container.querySelectorAll('button[data-paction]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const action = btn.dataset.paction;
+      const reason = action === 'reject' ? (prompt('سبب الرفض (اختياري)') || '') : '';
+      try {
+        await api(`/admin/photos/${btn.dataset.id}/decision`, 'POST', { action, reason });
         renderAdminSection();
       } catch (err) { showError(container, err); }
     });

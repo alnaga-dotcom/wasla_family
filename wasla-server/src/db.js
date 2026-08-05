@@ -339,6 +339,10 @@ db.exec(`
     mime_type TEXT NOT NULL,
     size_bytes INTEGER NOT NULL DEFAULT 0,
     status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active','deleted')),
+    review_status TEXT NOT NULL DEFAULT 'approved' CHECK (review_status IN ('approved','pending','rejected')),
+    reviewed_by INTEGER,
+    reviewed_at TEXT,
+    review_reason TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
   CREATE INDEX IF NOT EXISTS idx_user_photos_user ON user_photos(user_id, kind);
@@ -380,6 +384,22 @@ function migrate() {
   if (!cols.includes('phone_verified_at')) {
     db.exec('ALTER TABLE users ADD COLUMN phone_verified_at TEXT');
   }
+
+  // Photo moderation columns (profile/selfie review workflow)
+  const pcols = db.prepare("PRAGMA table_info(user_photos)").all().map((c) => c.name);
+  if (!pcols.includes('review_status')) {
+    db.exec(`ALTER TABLE user_photos ADD COLUMN review_status TEXT NOT NULL DEFAULT 'approved' CHECK (review_status IN ('approved','pending','rejected'))`);
+  }
+  if (!pcols.includes('reviewed_by')) {
+    db.exec('ALTER TABLE user_photos ADD COLUMN reviewed_by INTEGER');
+  }
+  if (!pcols.includes('reviewed_at')) {
+    db.exec('ALTER TABLE user_photos ADD COLUMN reviewed_at TEXT');
+  }
+  if (!pcols.includes('review_reason')) {
+    db.exec('ALTER TABLE user_photos ADD COLUMN review_reason TEXT');
+  }
+
   const roleAllowed = "'user','viewer','moderator','verification_officer','customer_support','rule_admin','subscription_admin','admin','super_admin'";
   if (!cols.includes('role')) {
     db.exec(`ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'user' CHECK (role IN (${roleAllowed}))`);

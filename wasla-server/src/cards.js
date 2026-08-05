@@ -27,6 +27,8 @@ export function publicCard(userId) {
     if (fields[k] !== undefined) card[k] = fields[k];
   });
   if (fields.age !== undefined) card.age = fields.age; // مشتق من سنة الميلاد — للفلترة فقط
+  const avatar = db.prepare("SELECT filename FROM user_photos WHERE user_id = ? AND kind = 'profile' AND status = 'active' AND review_status = 'approved' ORDER BY id DESC LIMIT 1").get(userId);
+  card.photo = avatar ? `/api/photos/${avatar.filename}` : null;
   card.hasPhoto = fields.photo_done === '1';
   card.isVerified = !!u.verified_at;
   card.trustLevel = trustLevel(userId);

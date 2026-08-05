@@ -11,6 +11,8 @@ import { listRules, createRule, updateRule, testRule } from '../rules.js';
 import { listConfig, saveConfig } from '../recommendations.js';
 import { listPermissions, listAllRoles, listAllPermissions, isStaff } from '../permissions.js';
 import { runDesignReview } from '../design-review.js';
+import { getPendingPhotos, approvePhoto, rejectPhoto, photoUrl } from '../uploads.js';
+import { notify } from '../notify.js';
 
 const router = Router();
 
@@ -255,6 +257,40 @@ router.post('/moderation/:id/resolve', adminRequired, (req, res) => {
   const result = resolveItem(id, action, ctx.userId || null, ctx.role, reason);
   logAction(ctx, 'moderation_' + action, 'moderation_item', id, reason, { status: result.status });
   res.json({ ok: true, itemId: id, status: result.status });
+});
+
+// GET /admin/photos?status=pending — avatar review queue
+router.get('/photos', permissionRequired('queues','view'), (req, res) => {
+  const status = req.query.status || 'pending';
+  const limit = Math.min(500, Number(req.query.limit) || 200);
+  const rows = getPendingPhotos(status, limit).map((p) => ({
+    id: p.id,
+    userId: p.user_id,
+    userName: p.user_name,
+    userPhone: p.user_phone,
+    kind: p.kind,
+    url: photoUrl(p),
+    reviewStatus: p.review_status,
+    reviewedAt: p.reviewed_at,
+    reviewReason: p.review_reason,
+    createdAt: p.created_at,
+  }));
+  res.json({ items: rows });
+});
+
+// POST /admin/photos/:id/decision { action: 'approve'|'reject', reason }
+router.post('/photos/:id/decision', adminRequired, async (req, res) => {
+  const id = Number(req.params.id);
+  const { action, reason } = req.body || {};
+  if (!['approve', 'reject'].includes(action)) {
+    return apiError(res, 422, 'INVALID_ACTION', 'إجراء غير صالح', 'action');
+  }
+  const ctx = actorFrom(req);
+  const result = action === 'approve' ? approvePhoto(id, ctx.userId || null) : rejectPhoto(id, ctx.userId || null, reason);
+  if (!result.ok) return apiError(res, 404, 'PHOTO_NOT_PENDING', 'الصورة غير موجودة أو ليست بانتظار المراجعة');
+  await notify(result.userId, 'system', action === 'approve' ? 'تمت الموافقة على صورتك الرمزية ✓' : 'عُرضت صورتك الرمزية عن المراجعة — أعد رفع صورة أخرى');
+  logAction(ctx, 'photo_' + action, 'user_photo', id, reason, { status: action });
+  res.json({ ok: true, photoId: id, status: action });
 });
 
 // GET /admin/events?type=&entityType=&entityId=&limit=
