@@ -156,6 +156,39 @@ router.post('/email/verify', authRequired, (req, res) => {
   res.json({ ok: true, user: publicUser(req.userId) });
 });
 
+// POST /api/auth/phone/request  → send verification OTP to the phone via WhatsApp (Phase 2)
+router.post('/phone/request', authRequired, async (req, res) => {
+  const user = db.prepare('SELECT phone FROM users WHERE id = ?').get(req.userId);
+  const code = issueOtp(req.userId, 'phone_verify');
+  try {
+    await sendOtp({ phone: user.phone, code, channel: 'phone' });
+  } catch (err) {
+    console.error('OTP send failed:', err && err.response ? err.response : (err && err.message));
+    return apiError(res, 502, 'OTP_SEND_FAILED', 'تعذر إرسال رمز التحقق — ستتمكن من تفعيل رقمك عند تفعيل واتساب', 'phone');
+  }
+  const dev = config.devOtpEcho ? { otp: code, note: 'dev only — يظهر في الرد للتجربة المحلية فقط' } : undefined;
+  res.json({ sent: true, channel: 'phone', expiresInSec: config.otpExpiryMs / 1000, dev });
+});
+
+// POST /api/auth/phone/verify  { code }  → confirm the phone number (Phase 2)
+router.post('/phone/verify', authRequired, (req, res) => {
+  const code = String((req.body && req.body.code) || '').trim();
+  if (!/^\d{6}$/.test(code)) return apiError(res, 422, 'INVALID_CODE', 'أدخل رمز التحقق المكوّن من ٦ أرقام', 'code');
+
+  const otp = db.prepare(
+    `SELECT * FROM otp_codes WHERE user_id = ? AND purpose = 'phone_verify' AND used_at IS NULL
+     ORDER BY id DESC LIMIT 1`
+  ).get(req.userId);
+
+  if (!otp || otp.code !== code) return apiError(res, 401, 'WRONG_CODE', 'الرمز غير صحيح', 'code');
+  if (new Date(otp.expires_at + 'Z') < new Date()) return apiError(res, 401, 'CODE_EXPIRED', 'انتهت صلاحية الرمز — اطلب رمزًا جديدًا', 'code');
+
+  db.prepare('UPDATE otp_codes SET used_at = ? WHERE id = ?').run(nowIso(), otp.id);
+  db.prepare('UPDATE users SET phone_verified_at = ? WHERE id = ?').run(nowIso(), req.userId);
+  publish('PhoneVerified', { userId: req.userId }, 'api', { userId: req.userId, entityType: 'user', entityId: String(req.userId) });
+  res.json({ ok: true, user: publicUser(req.userId) });
+});
+
 // POST /api/auth/otp/verify  { phone, code }
 router.post('/otp/verify', (req, res) => {
   const { phone, code } = req.body || {};
