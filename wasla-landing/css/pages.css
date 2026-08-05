@@ -48,7 +48,7 @@
 .back-link { display: inline-flex; align-items: center; gap: 6px; color: var(--burgundy, #4A0F1C); font-weight: 700; text-decoration: none; margin-bottom: 24px; }
 .back-link:hover { color: var(--accent, #C2A052); }
 
-#post-view .cat, .prose .cat {
+.prose .cat {
   display: inline-block; font-size: 12px; font-weight: 700; padding: 4px 12px; border-radius: 20px;
   background: var(--bg-soft, #F3E9D7); color: var(--burgundy, #4A0F1C); margin-bottom: 10px;
 }
@@ -78,11 +78,29 @@
 .blog-empty { text-align: center; color: #9B7B75; padding: 60px 0; }
 
 /* --- Blog article view --- */
+#post-view {
+  background:
+    radial-gradient(900px 420px at 50% -10%, rgba(233,212,166,.14), transparent 60%),
+    linear-gradient(180deg, #4A0F1C 0%, #2B0710 100%);
+  border-radius: 24px;
+  padding: 40px 38px 48px;
+  border-top: 3px solid var(--accent, #C2A052);
+  box-shadow: 0 18px 44px rgba(43,7,16,.35);
+  color: #FDF3E3;
+}
+#post-view h1 { color: var(--gold-light, #E9D4A6); font-size: 28px; font-weight: 800; margin: 0 0 12px; line-height: 1.5; }
+#post-view .back-link { color: var(--gold-antique, #C2A052); }
+#post-view .back-link:hover { color: #E9D4A6; }
+#post-view .cat {
+  display: inline-block; font-size: 12px; font-weight: 700; padding: 4px 12px; border-radius: 20px;
+  background: rgba(233,212,166,.16); color: #E9D4A6; border: 1px solid rgba(233,212,166,.35); margin-bottom: 12px;
+}
 .post-cover { width: 100%; max-height: 340px; object-fit: cover; border-radius: 16px; margin: 8px 0 20px; }
-.post-meta { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; color: #9B7B75; font-size: 15px; margin-bottom: 18px; }
-.post-body { line-height: 2.1; color: #4B2A2A; }
+.post-meta { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; color: rgba(233,212,166,.78); font-size: 15px; margin-bottom: 18px; }
+.post-body { line-height: 2.1; color: #FDF3E3; }
 .post-body p { margin: 12px 0; }
-.post-body h2 { margin: 28px 0 10px; color: var(--burgundy-dark, #380B15); }
+.post-body h2 { margin: 28px 0 10px; color: #E9D4A6; }
+.post-body strong { color: #E9D4A6; }
 
 /* --- Feedback form --- */
 .feedback-form { max-width: 640px; margin: 0 auto; background: var(--card, #fff); border-radius: 20px; padding: 30px; box-shadow: 0 6px 22px rgba(74,15,28,0.08); border-top: 3px solid var(--accent, #C2A052); }
@@ -102,4 +120,6 @@
 @media (max-width: 640px) {
   .page-hero h1 { font-size: 26px; }
   .prose { padding: 24px 18px; }
+  #post-view { padding: 26px 18px; }
+  #post-view h1 { font-size: 22px; }
 }
