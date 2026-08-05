@@ -31,8 +31,12 @@
   }
   .hero-copy {
     width: 100%;
-    margin-top: 180px;
+    margin-top: 140px;
   }
+  .hero-eyebrow, .hero-title, .hero-desc, .hero-actions, .hero-stats { position: static; }
+  .hero-desc { margin-top: 12px; }
+  .hero-actions { margin-top: 24px; }
+  .hero-stats { margin-top: 26px; }
   .feature-grid { grid-template-columns: repeat(2, 1fr); }
   .steps { grid-template-columns: repeat(2, 1fr); row-gap: 56px; }
   .steps-line { display: none; }
@@ -61,11 +65,17 @@
   .brand-logo { height: 84px; }
   .header-actions { display: none; }
   .hero { min-height: 690px; }
-  .hero-copy { margin-top: 130px; }
+  .hero-copy { margin-top: 90px; }
   .hero p { font-size: 17px; }
   .hero-actions { display: grid; }
-  .hero-stats { grid-template-columns: 1fr; }
-  .hero-stats div { padding: 13px 16px; }
+  .hero-stats {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    max-width: 100%;
+  }
+  .hero-stats div { padding: 10px 6px; }
+  .hero-stats strong { font-size: 18px; }
+  .hero-stats span { font-size: 12px; }
   .section { padding: 72px 0; }
   .feature-grid,
   .steps { grid-template-columns: 1fr; }
