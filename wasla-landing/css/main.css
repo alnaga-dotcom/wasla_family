@@ -127,7 +127,7 @@
   position: absolute;
   inset: 0;
   background: url("../assets/images/hero-wasla.jpg") center/cover no-repeat;
-  transform: scale(1.02);
+  transform: scale(1);
   animation: hero-breathe 22s ease-in-out infinite alternate;
 }
 .hero-overlay {
@@ -853,8 +853,8 @@
 }
 
 @keyframes hero-breathe {
-  from { transform: scale(1.02); }
-  to { transform: scale(1.055); }
+  from { transform: scale(1); }
+  to { transform: scale(1.035); }
 }
 @keyframes gold-breathe {
   0%,100% { box-shadow: 0 0 0 rgba(194,160,82,0); }
