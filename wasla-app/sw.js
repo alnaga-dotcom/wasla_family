@@ -1,4 +1,4 @@
-const CACHE_NAME = 'wasla-v1.2';
+const CACHE_NAME = 'wasla-v2';
 const ASSETS = ['/', '/index.html', '/app.js', '/style.css', '/manifest.json'];
 
 self.addEventListener('install', (e) => {
@@ -15,6 +15,12 @@ self.addEventListener('activate', (e) => {
 
 self.addEventListener('fetch', (e) => {
   e.respondWith(
-    caches.open(CACHE_NAME).then((c) => c.match(e.request)).then((res) => res || fetch(e.request))
+    fetch(e.request)
+      .then((res) => {
+        const copy = res.clone();
+        caches.open(CACHE_NAME).then((c) => c.put(e.request, copy));
+        return res;
+      })
+      .catch(() => caches.open(CACHE_NAME).then((c) => c.match(e.request)))
   );
 });

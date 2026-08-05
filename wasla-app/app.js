@@ -50,7 +50,7 @@ async function api(path, method = 'GET', body = null, _tries = 0) {
     if (!res.ok) throw { status: res.status, data };
     return data;
   } catch (err) {
-    if (err.status === 401 || err.status === 403) {
+    if ((err.status === 401 || err.status === 403) && state.token) {
       logout();
       throw err;
     }
@@ -76,7 +76,7 @@ async function apiUpload(path, formData, _tries = 0) {
     if (!res.ok) throw { status: res.status, data };
     return data;
   } catch (err) {
-    if (err.status === 401 || err.status === 403) {
+    if ((err.status === 401 || err.status === 403) && state.token) {
       logout();
       throw err;
     }
@@ -229,6 +229,7 @@ function renderLogin() {
   el('toRegister').addEventListener('click', (e) => { e.preventDefault(); renderRegister(); });
   el('loginBtn').addEventListener('click', async () => {
     const phone = el('phone').value.trim();
+    if (!phone) { showError(el('error'), { message: 'أدخل رقم الهاتف' }); return; }
     try {
       const data = await api('/api/auth/login', 'POST', { phone });
       state.phone = phone;
@@ -351,9 +352,21 @@ function renderRegister() {
       const profession = el('profession').value;
       const phone = el('phone').value.trim();
       const email = el('email').value.trim();
-      if (!profession) { showError(el('error'), { message: 'اختر المهنة' }); return; }
-      if (!phone) { showError(el('error'), { message: 'أدخل رقم الهاتف' }); return; }
-      if (!email) { showError(el('error'), { message: 'أدخل البريد الإلكتروني' }); return; }
+      const education = el('education').value;
+      const missing = [];
+      if (!reg.firstName) missing.push('الاسم الأول');
+      if (!reg.familyName) missing.push('اسم العائلة');
+      if (!reg.name) missing.push('اسم الظهور');
+      if (!reg.birthYear) missing.push('سنة الميلاد');
+      if (!reg.city) missing.push('المدينة');
+      if (!profession) missing.push('المهنة');
+      if (!education) missing.push('المؤهل الدراسي');
+      if (!phone) missing.push('رقم الهاتف');
+      if (!email) missing.push('البريد الإلكتروني');
+      if (missing.length) {
+        showError(el('error'), { message: 'يرجى إكمال جميع الحقول: ' + missing.join('، ') });
+        return;
+      }
       const fields = {
         first_name: reg.firstName,
         family_name: reg.familyName,
@@ -366,7 +379,7 @@ function renderRegister() {
         city: reg.city,
         profession,
         profession_other: profession === 'أخرى' ? el('profession_other').value.trim() : '',
-        education: el('education').value,
+        education,
       };
       const payload = {
         name: reg.name,
@@ -400,6 +413,7 @@ function renderVerify(hint) {
   `;
   el('verifyBtn').addEventListener('click', async () => {
     const code = el('code').value.trim();
+    if (!code) { showError(el('error'), { message: 'أدخل رمز التحقق' }); return; }
     try {
       const data = await api('/api/auth/otp/verify', 'POST', { phone: state.phone, code });
       setToken(data.token, data.user);
