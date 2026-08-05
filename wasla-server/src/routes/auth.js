@@ -128,7 +128,7 @@ router.post('/email/request', authRequired, async (req, res) => {
   db.prepare('UPDATE users SET email = ?, email_verified_at = NULL WHERE id = ?').run(email, req.userId);
   const code = issueOtp(req.userId, 'email_verify');
   try {
-    await sendOtp({ phone: db.prepare('SELECT phone FROM users WHERE id = ?').get(req.userId).phone, email, code });
+    await sendOtp({ phone: db.prepare('SELECT phone FROM users WHERE id = ?').get(req.userId).phone, email, code, channel: 'email' });
   } catch (err) {
     console.error('OTP send failed:', err && err.response ? err.response : (err && err.message));
     return apiError(res, 502, 'OTP_SEND_FAILED', 'تعذر إرسال رمز التحقق، جرّب مرة أخرى', 'email');
@@ -206,7 +206,7 @@ router.post('/login', async (req, res) => {
 
   const code = issueOtp(user.id, 'login');
   try {
-    await sendOtp({ phone: norm, email: user.email, code });
+    await sendOtp({ phone: norm, email: user.email, code, channel: 'email' });
   } catch (err) {
     return apiError(res, 502, 'OTP_SEND_FAILED', 'تعذر إرسال رمز التحقق، جرّب مرة أخرى', 'phone');
   }
