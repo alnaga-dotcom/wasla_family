@@ -33,7 +33,7 @@
     width: 100%;
     margin-top: 140px;
   }
-  .hero-content { margin-top: -120px; }
+  .hero-content { margin-top: -220px; margin-inline-start: 50px; }
   .hero-eyebrow, .hero-title, .hero-desc, .hero-actions, .hero-stats { position: static; }
   .hero-desc { margin-top: 12px; }
   .hero-actions { margin-top: 24px; }
