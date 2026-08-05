@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { db } from '../db.js';
-import { authRequired } from '../middleware/auth.js';
+import { authRequired, emailVerifiedRequired } from '../middleware/auth.js';
 import { publicCard } from '../cards.js';
 import { FIELD_SPECS } from '../fields.js';
 
@@ -9,7 +9,7 @@ const router = Router();
 const SEARCHABLE = ['city', 'governorate', 'education', 'religiosity', 'lifestyle', 'profession', 'nationality'];
 
 // GET /api/search?q=&city=&education=&religiosity=&lifestyle=&profession=&nationality=&ageMin=&ageMax=&heightMin=&heightMax=&page=&limit=
-router.get('/search', authRequired, (req, res) => {
+router.get('/search', authRequired, emailVerifiedRequired, (req, res) => {
   const me = req.userId;
   const q = String(req.query.q || '').trim();
   const city = String(req.query.city || '').trim();

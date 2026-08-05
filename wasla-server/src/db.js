@@ -20,6 +20,9 @@ db.exec(`
     email TEXT,
     gender TEXT NOT NULL CHECK (gender IN ('male','female')),
     status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','active','suspended')),
+    email_verified_at TEXT,
+    phone_verified_at TEXT,
+    verified_at TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
 
@@ -371,6 +374,12 @@ function migrate() {
   if (!cols.includes('verified_at')) {
     db.exec('ALTER TABLE users ADD COLUMN verified_at TEXT');
   }
+  if (!cols.includes('email_verified_at')) {
+    db.exec('ALTER TABLE users ADD COLUMN email_verified_at TEXT');
+  }
+  if (!cols.includes('phone_verified_at')) {
+    db.exec('ALTER TABLE users ADD COLUMN phone_verified_at TEXT');
+  }
   const roleAllowed = "'user','viewer','moderator','verification_officer','customer_support','rule_admin','subscription_admin','admin','super_admin'";
   if (!cols.includes('role')) {
     db.exec(`ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'user' CHECK (role IN (${roleAllowed}))`);
@@ -390,10 +399,13 @@ function migrate() {
           role TEXT NOT NULL DEFAULT 'user' CHECK (role IN (${roleAllowed})),
           trust_level INTEGER NOT NULL DEFAULT 1,
           push_token TEXT,
+          email_verified_at TEXT,
+          phone_verified_at TEXT,
+          verified_at TEXT,
           created_at TEXT NOT NULL DEFAULT (datetime('now')),
           deleted_at TEXT
         );
-        INSERT INTO users_new SELECT id, name, phone, email, gender, status, role, trust_level, push_token, created_at, deleted_at FROM users;
+        INSERT INTO users_new SELECT id, name, phone, email, gender, status, role, trust_level, push_token, email_verified_at, phone_verified_at, verified_at, created_at, deleted_at FROM users;
         DROP TABLE users;
         ALTER TABLE users_new RENAME TO users;
         PRAGMA foreign_keys = ON;

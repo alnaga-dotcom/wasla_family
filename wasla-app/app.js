@@ -294,7 +294,7 @@ function renderRegister() {
         <select id="education">${options(REG_EDUCATION, '')}</select>
         <label>رقم الهاتف</label>
         <input id="phone" type="tel" placeholder="01xxxxxxxx" />
-        <label>البريد الإلكتروني</label>
+        <label>البريد الإلكتروني (اختياري)</label>
         <input id="email" type="email" placeholder="example@domain.com" />
       `;
     }
@@ -362,9 +362,12 @@ function renderRegister() {
       if (!profession) missing.push('المهنة');
       if (!education) missing.push('المؤهل الدراسي');
       if (!phone) missing.push('رقم الهاتف');
-      if (!email) missing.push('البريد الإلكتروني');
       if (missing.length) {
         showError(el('error'), { message: 'يرجى إكمال جميع الحقول: ' + missing.join('، ') });
+        return;
+      }
+      if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        showError(el('error'), { message: 'البريد الإلكتروني غير صالح' });
         return;
       }
       const fields = {
@@ -391,7 +394,8 @@ function renderRegister() {
       try {
         const data = await api('/api/auth/register', 'POST', payload);
         state.phone = payload.phone;
-        renderVerify(data.dev?.otp);
+        setToken(data.token, data.user);
+        renderProfile();
       } catch (err) { showError(el('error'), err); }
     });
   }
@@ -440,6 +444,7 @@ async function renderProfile() {
         <p>اكتمال الملف: ${completion.pct || 0}%</p>
         <div style="height:8px;background:#E3E3EC;border-radius:4px"><div style="height:100%;width:${completion.pct || 0}%;background:#6B4EE6;border-radius:4px"></div></div>
       </div>
+      ${emailVerificationCard(me.user)}
       ${verCard}
       <div class="card">
         <h3>الصور</h3>
@@ -475,6 +480,8 @@ async function renderProfile() {
         } catch (err) { showError(el('error'), err); }
       });
     }
+    const evBtn = el('goEmailVerify');
+    if (evBtn) evBtn.addEventListener('click', () => renderEmailVerify(() => renderProfile()));
     el('saveProfile').addEventListener('click', async () => {
       const keys = ['birth_year','country','governorate','city','nationality','profession','profession_other','education','religiosity','lifestyle','height','bio'];
       const updates = [];
@@ -488,6 +495,70 @@ async function renderProfile() {
       } catch (err) { showError(el('error'), err); }
     });
   } catch (err) { showError(app, err); }
+}
+
+function emailVerificationCard(user) {
+  if (user.emailVerified) {
+    return `<div class="card"><h3>البريد الإلكتروني</h3><p class="badge">مفعّل ✓ — ${escapeHtml(user.email || '')}</p></div>`;
+  }
+  return `
+    <div class="card">
+      <h3>تفعيل البريد الإلكتروني</h3>
+      <p style="font-size:14px;color:var(--muted)">فعّل بريدك الإلكتروني للوصول إلى البحث والمراسلة.</p>
+      <button id="goEmailVerify">تفعيل الآن</button>
+    </div>
+  `;
+}
+
+function isEmailGate(err) {
+  return err?.status === 403 && err?.data?.code === 'EMAIL_VERIFICATION_REQUIRED';
+}
+
+function renderEmailVerify(onVerified) {
+  const app = el('app');
+  app.innerHTML = `
+    <div class="card">
+      ${brandHeader()}
+      <h1>تفعيل البريد الإلكتروني</h1>
+      <p>فعّل بريدك الإلكتروني للوصول إلى البحث والمراسلة.</p>
+      <label>البريد الإلكتروني</label>
+      <input id="evEmail" type="email" placeholder="example@domain.com" value="${escapeHtml(state.user?.email || '')}" />
+      <button id="evRequest">إرسال رمز التحقق</button>
+      <div id="evCodeWrap" style="display:none;margin-top:12px">
+        <label>رمز التحقق</label>
+        <input id="evCode" type="text" placeholder="123456" />
+        <button id="evVerify">تحقق</button>
+      </div>
+      <div id="error"></div>
+      <p style="text-align:center;margin-top:16px"><a href="#" id="evBack">عودة</a></p>
+    </div>
+  `;
+  el('evBack').addEventListener('click', (e) => { e.preventDefault(); renderProfile(); });
+  el('evRequest').addEventListener('click', async () => {
+    const email = el('evEmail').value.trim();
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      showError(el('error'), { message: 'أدخل بريدًا إلكترونيًا صحيحًا' });
+      return;
+    }
+    try {
+      const data = await api('/api/auth/email/request', 'POST', { email });
+      state.user.email = email;
+      localStorage.setItem('wasla_user', JSON.stringify(state.user));
+      el('evCodeWrap').style.display = 'block';
+      el('evRequest').style.display = 'none';
+      if (data.dev?.otp) el('evCode').placeholder = 'رمز التجربة: ' + data.dev.otp;
+    } catch (err) { showError(el('error'), err); }
+  });
+  el('evVerify').addEventListener('click', async () => {
+    const code = el('evCode').value.trim();
+    if (!code) { showError(el('error'), { message: 'أدخل رمز التحقق' }); return; }
+    try {
+      const data = await api('/api/auth/email/verify', 'POST', { code });
+      state.user = data.user;
+      localStorage.setItem('wasla_user', JSON.stringify(data.user));
+      if (onVerified) onVerified(); else renderProfile();
+    } catch (err) { showError(el('error'), err); }
+  });
 }
 
 function verificationCard(ver) {
@@ -574,7 +645,10 @@ async function renderDiscovery() {
     `;
     el('passBtn').addEventListener('click', async () => { await api(`/api/matches/${c.userId}/like`, 'POST', { like: false }); renderDiscovery(); });
     el('likeBtn').addEventListener('click', async () => { await api(`/api/matches/${c.userId}/like`, 'POST', { like: true }); renderDiscovery(); });
-  } catch (err) { showError(app, err); }
+  } catch (err) {
+    if (isEmailGate(err)) { renderEmailVerify(() => renderDiscovery()); return; }
+    showError(app, err);
+  }
 }
 
 async function renderMutuals() {
@@ -654,7 +728,10 @@ async function renderChat(userId) {
       try {
         await api(`/api/conversations/${userId}/messages`, 'POST', { text });
         renderChat(userId);
-      } catch (err) { showError(el('error'), err); }
+      } catch (err) {
+        if (isEmailGate(err)) { renderEmailVerify(() => renderChat(userId)); return; }
+        showError(el('error'), err);
+      }
     });
   } catch (err) { showError(app, err); }
 }

@@ -1,14 +1,14 @@
 import { Router } from 'express';
 import { db, nowIso } from '../db.js';
 import { apiError } from '../validate.js';
-import { authRequired } from '../middleware/auth.js';
+import { authRequired, emailVerifiedRequired } from '../middleware/auth.js';
 import { publicCard } from '../cards.js';
 import { getRecommendations, markOpened } from '../recommendations.js';
 
 const router = Router();
 
 // GET /api/discovery/recommendations?limit=
-router.get('/recommendations', authRequired, (req, res) => {
+router.get('/recommendations', authRequired, emailVerifiedRequired, (req, res) => {
   const me = req.userId;
   const limit = Math.min(50, Math.max(1, Number(req.query.limit) || 20));
   const ranked = getRecommendations(me, limit);

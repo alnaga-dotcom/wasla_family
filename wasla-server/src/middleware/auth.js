@@ -38,3 +38,12 @@ export function authGrace(req, res, next) {
   req.userId = row.user_id;
   next();
 }
+
+// Phase 1 gate: search + chat require verified email (Wasla progressive verification)
+export function emailVerifiedRequired(req, res, next) {
+  const u = db.prepare('SELECT email, email_verified_at FROM users WHERE id = ?').get(req.userId);
+  if (!u || !u.email_verified_at) {
+    return apiError(res, 403, 'EMAIL_VERIFICATION_REQUIRED', 'فعّل بريدك الإلكتروني من صفحة الملف للوصول إلى البحث والمراسلة', 'email');
+  }
+  next();
+}

@@ -7,7 +7,7 @@ import { authRequired } from '../middleware/auth.js';
 import { completionFor, isValidFieldValue } from '../fields.js';
 import { publish } from '../events.js';
 import { startInstance, transition } from '../workflows.js';
-import { sendOtp, OTP_PROVIDER } from '../otp/send.js';
+import { sendOtp } from '../otp/send.js';
 import { check as checkModeration } from '../moderation.js';
 
 const router = Router();
@@ -39,15 +39,18 @@ function issueSession(userId) {
 }
 
 function publicUser(userId) {
-  const u = db.prepare('SELECT id, name, phone, gender, status, role, trust_level, verified_at, created_at FROM users WHERE id = ?').get(userId);
+  const u = db.prepare('SELECT id, name, phone, email, gender, status, role, trust_level, email_verified_at, phone_verified_at, verified_at, created_at FROM users WHERE id = ?').get(userId);
   return {
     id: u.id,
     name: u.name,
     phone: u.phone,
+    email: u.email,
     gender: u.gender,
     status: u.status,
     role: u.role,
     trustLevel: u.trust_level,
+    emailVerified: !!u.email_verified_at,
+    phoneVerified: !!u.phone_verified_at,
     verified: !!u.verified_at,
     createdAt: u.created_at,
   };
@@ -58,7 +61,7 @@ function isValidEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email).trim());
 }
 
-// POST /api/auth/register  { name, phone, email?, gender, fields? }
+// POST /api/auth/register  { name, phone, email?, gender, fields? }  → instant account, no email verification
 router.post('/register', async (req, res) => {
   const { name, phone, email, gender, fields } = req.body || {};
   if (!name || String(name).trim().length < 3 || String(name).trim().length > 60) {
@@ -74,24 +77,23 @@ router.post('/register', async (req, res) => {
     return apiError(res, 422, 'INVALID_GENDER', 'اختر الجنس (male / female)', 'gender');
   }
   const emailNorm = String(email || '').trim() || null;
-  if (OTP_PROVIDER === 'email' && !isValidEmail(emailNorm)) {
-    return apiError(res, 422, 'EMAIL_REQUIRED', 'البريد الإلكتروني مطلوب لإرسال رمز التحقق', 'email');
+  if (emailNorm && !isValidEmail(emailNorm)) {
+    return apiError(res, 422, 'INVALID_EMAIL', 'البريد الإلكتروني غير صالح', 'email');
   }
 
   const existing = db.prepare('SELECT * FROM users WHERE phone = ?').get(norm);
   if (existing && existing.status === 'active') {
-    return apiError(res, 409, 'ALREADY_REGISTERED', 'هذا الرقم مسجل بالفعل — سجل الدخول برمز التحقق', 'phone');
+    return apiError(res, 409, 'ALREADY_REGISTERED', 'هذا الرقم مسجل بالفعل — سجّل الدخول برمز التحقق', 'phone');
   }
 
   let userId;
   if (existing) {
     userId = existing.id;
-    if (emailNorm) {
-      db.prepare('UPDATE users SET email = ? WHERE id = ?').run(emailNorm, userId);
-    }
+    db.prepare('UPDATE users SET status = ?, name = ?, gender = ?, email = COALESCE(?, email) WHERE id = ?')
+      .run('active', String(name).trim(), gender, emailNorm, userId);
   } else {
-    const r = db.prepare('INSERT INTO users (name, phone, email, gender) VALUES (?, ?, ?, ?)')
-      .run(String(name).trim(), norm, emailNorm, gender);
+    const r = db.prepare('INSERT INTO users (name, phone, email, gender, status) VALUES (?, ?, ?, ?, ?)')
+      .run(String(name).trim(), norm, emailNorm, gender, 'active');
     userId = Number(r.lastInsertRowid);
   }
 
@@ -102,19 +104,56 @@ router.post('/register', async (req, res) => {
     }
   }
 
-  const code = issueOtp(userId, 'register');
+  const token = issueSession(userId);
+  publish('UserRegistered', { userId, name: String(name).trim(), gender }, 'api', { userId, entityType: 'user', entityId: String(userId) });
+  publish('UserLoggedIn', { userId, via: 'register' }, 'api', { userId, entityType: 'user', entityId: String(userId) });
   try {
-    await sendOtp({ phone: norm, email: emailNorm, code });
+    const inst = startInstance('account', 'user', userId, { name: String(name).trim(), gender }, 'registered');
+    transition(inst.instanceId, 'active', { actorId: userId, reason: 'instant_register' });
+  } catch (e) { /* workflow may already be advanced */ }
+
+  res.status(201).json({ token, user: publicUser(userId) });
+});
+
+// POST /api/auth/email/request  { email }  → attach email + send verification OTP (Phase 1)
+router.post('/email/request', authRequired, async (req, res) => {
+  const email = String((req.body && req.body.email) || '').trim();
+  if (!isValidEmail(email)) {
+    return apiError(res, 422, 'INVALID_EMAIL', 'البريد الإلكتروني غير صالح', 'email');
+  }
+  const other = db.prepare('SELECT id FROM users WHERE email = ? AND id != ?').get(email, req.userId);
+  if (other) {
+    return apiError(res, 409, 'EMAIL_TAKEN', 'هذا البريد مسجل لعضو آخر', 'email');
+  }
+  db.prepare('UPDATE users SET email = ?, email_verified_at = NULL WHERE id = ?').run(email, req.userId);
+  const code = issueOtp(req.userId, 'email_verify');
+  try {
+    await sendOtp({ phone: db.prepare('SELECT phone FROM users WHERE id = ?').get(req.userId).phone, email, code });
   } catch (err) {
     console.error('OTP send failed:', err && err.response ? err.response : (err && err.message));
-    return apiError(res, 502, 'OTP_SEND_FAILED', 'تعذر إرسال رمز التحقق، جرّب مرة أخرى', 'phone');
+    return apiError(res, 502, 'OTP_SEND_FAILED', 'تعذر إرسال رمز التحقق، جرّب مرة أخرى', 'email');
   }
   const dev = config.devOtpEcho ? { otp: code, note: 'dev only — يظهر في الرد للتجربة المحلية فقط' } : undefined;
+  res.json({ sent: true, expiresInSec: config.otpExpiryMs / 1000, dev });
+});
 
-  publish('UserRegistered', { userId, name: String(name).trim(), gender }, 'api', { userId, entityType: 'user', entityId: String(userId) });
-  startInstance('account', 'user', userId, { name: String(name).trim(), gender }, 'registered');
+// POST /api/auth/email/verify  { code }  → confirm email (Phase 1)
+router.post('/email/verify', authRequired, (req, res) => {
+  const code = String((req.body && req.body.code) || '').trim();
+  if (!/^\d{6}$/.test(code)) return apiError(res, 422, 'INVALID_CODE', 'أدخل رمز التحقق المكوّن من ٦ أرقام', 'code');
 
-  res.status(201).json({ userId, status: 'pending', expiresInSec: config.otpExpiryMs / 1000, dev });
+  const otp = db.prepare(
+    `SELECT * FROM otp_codes WHERE user_id = ? AND purpose = 'email_verify' AND used_at IS NULL
+     ORDER BY id DESC LIMIT 1`
+  ).get(req.userId);
+
+  if (!otp || otp.code !== code) return apiError(res, 401, 'WRONG_CODE', 'الرمز غير صحيح', 'code');
+  if (new Date(otp.expires_at + 'Z') < new Date()) return apiError(res, 401, 'CODE_EXPIRED', 'انتهت صلاحية الرمز — اطلب رمزًا جديدًا', 'code');
+
+  db.prepare('UPDATE otp_codes SET used_at = ? WHERE id = ?').run(nowIso(), otp.id);
+  db.prepare('UPDATE users SET email_verified_at = ? WHERE id = ?').run(nowIso(), req.userId);
+  publish('EmailVerified', { userId: req.userId }, 'api', { userId: req.userId, entityType: 'user', entityId: String(req.userId) });
+  res.json({ ok: true, user: publicUser(req.userId) });
 });
 
 // POST /api/auth/otp/verify  { phone, code }
@@ -160,6 +199,9 @@ router.post('/login', async (req, res) => {
   const user = db.prepare('SELECT * FROM users WHERE phone = ?').get(norm);
   if (!user || user.status !== 'active') {
     return apiError(res, 404, 'NOT_REGISTERED', 'هذا الرقم غير مسجل — أنشئ حسابًا أولًا', 'phone');
+  }
+  if (!user.email) {
+    return apiError(res, 422, 'EMAIL_MISSING', 'أضف بريدك الإلكتروني وتفعيله من صفحة الملف، ثم سجّل الدخول برمز التحقق', 'phone');
   }
 
   const code = issueOtp(user.id, 'login');

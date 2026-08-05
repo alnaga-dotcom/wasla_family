@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { db, nowIso } from '../db.js';
 import { apiError } from '../validate.js';
-import { authRequired } from '../middleware/auth.js';
+import { authRequired, emailVerifiedRequired } from '../middleware/auth.js';
 import { publicCard } from '../cards.js';
 import { notify } from '../notify.js';
 import { canSendMessage, useMessage, isIncomingConversation } from '../subscription.js';
@@ -81,7 +81,7 @@ router.get('/conversations/:id/messages', authRequired, (req, res) => {
 });
 
 // POST /api/conversations/{id}/messages  { text }
-router.post('/conversations/:id/messages', authRequired, async (req, res) => {
+router.post('/conversations/:id/messages', authRequired, emailVerifiedRequired, async (req, res) => {
   const me = req.userId;
   const other = Number(req.params.id);
   const text = String((req.body && req.body.text) || '').trim();
