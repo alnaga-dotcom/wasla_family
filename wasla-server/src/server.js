@@ -23,6 +23,7 @@ import verificationRoutes from './routes/verification.js';
 import photoRoutes from './routes/photos.js';
 import adminRoutes from './routes/admin.js';
 import publicRoutes from './routes/public.js';
+import whatsappRoutes from './routes/whatsapp.js';
 import { contentPublicRouter, contentAdminRouter } from './routes/content.js';
 import { db } from './db.js';
 import { purgeExpired } from './account.js';
@@ -102,6 +103,7 @@ app.use('/api', verificationRoutes);
 app.use('/api', photoRoutes);
 app.use('/api/public', publicRoutes);
 app.use('/api/public', contentPublicRouter);
+app.use('/api/whatsapp', whatsappRoutes);
 app.use('/admin', adminRoutes);
 app.use('/admin', contentAdminRouter);
 

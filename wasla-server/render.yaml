@@ -27,8 +27,10 @@ services:
         value: "false"
       - key: LOG_LEVEL
         value: info
-      # REQUIRED for production boot: pick twilio or email and fill the matching
+      # REQUIRED for production boot: pick twilio, email or whatsapp and fill the matching
       # credentials below (empty creds will crash startup with a clear error).
+      # Switch to whatsapp ONLY after WHATSAPP_PHONE_NUMBER_ID and WHATSAPP_TOKEN
+      # are set in the Render dashboard.
       - key: WASLA_OTP_PROVIDER
         value: email
       - key: TWILIO_ACCOUNT_SID
@@ -49,6 +51,22 @@ services:
         sync: false
       - key: SMTP_FROM
         sync: false
+      # WhatsApp Cloud API (for WASLA_OTP_PROVIDER=whatsapp)
+      # Phone Number ID from Meta Developer -> WhatsApp -> API Setup
+      - key: WHATSAPP_PHONE_NUMBER_ID
+        sync: false
+      # Permanent system-user token with whatsapp_business_messaging permission
+      - key: WHATSAPP_TOKEN
+        sync: false
+      - key: WHATSAPP_TEMPLATE_NAME
+        value: wasla_otp
+      - key: WHATSAPP_LANGUAGE
+        value: ar
+      - key: WHATSAPP_API_VERSION
+        value: v21.0
+      # Must match the webhook "Verify token" configured in Meta
+      - key: WHATSAPP_VERIFY_TOKEN
+        value: wasla_verify_2026
       # Payments: keep 'mock' until 066.city credentials are configured
       - key: WASLA_PAYMENT_PROVIDER
         value: mock
