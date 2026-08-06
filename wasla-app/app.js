@@ -114,7 +114,7 @@ function logout() {
   const adminBtn = document.getElementById('nav-admin');
   if (adminBtn) adminBtn.classList.add('hidden');
   disconnectRealtime();
-  renderLogin();
+  renderWelcome();
 }
 
 // سجل رمز الجهاز للإشعارات الفورية (best-effort — يعمل بصمت عند غياب الدعم)
@@ -210,6 +210,34 @@ function showError(container, err) {
 
 function brandHeader() {
   return `<img class="app-logo" src="logo.png" alt="وصلــه WASLA" />`;
+}
+
+function renderWelcome() {
+  const app = el('app');
+  app.innerHTML = `
+    <div class="auth-screen">
+      <header class="auth-hero welcome-hero">
+        ${brandHeader()}
+        <h1 class="welcome-title">نربط القلوب<br><em>لنبني أسرًا مستقرة</em></h1>
+        <p class="auth-hero-tag">منصة زواج جاد وآمنة — أفراد حقيقيون، تحقق موثوق، وخصوصية محمية</p>
+      </header>
+      <div class="auth-body">
+        <ul class="welcome-features">
+          <li><span class="w-feature-icon">✓</span><span>أعضاء موثّقون بتحقق متعدد المستويات</span></li>
+          <li><span class="w-feature-icon">◆</span><span>توافق ذكي بناءً على معاييرك</span></li>
+          <li><span class="w-feature-icon">⌁</span><span>تواصل آمن مع حظر وإبلاغ ومراجعة</span></li>
+        </ul>
+        <button class="btn-primary" id="welcomeLogin">تسجيل الدخول</button>
+        <button class="btn-ghost" id="welcomeRegister">إنشاء حساب جديد</button>
+        <p class="welcome-note">
+          بتسجيلك أنت توافق على <a href="https://wasla.family/terms.html">الشروط</a> و
+          <a href="https://wasla.family/privacy.html">سياسة الخصوصية</a>
+        </p>
+      </div>
+    </div>
+  `;
+  el('welcomeLogin').addEventListener('click', renderLogin);
+  el('welcomeRegister').addEventListener('click', renderRegister);
 }
 
 function renderLogin() {
@@ -1186,7 +1214,7 @@ function init() {
     connectRealtime();
     renderProfile();
   } else {
-    renderLogin();
+    renderWelcome();
   }
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' });
