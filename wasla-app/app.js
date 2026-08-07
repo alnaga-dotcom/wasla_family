@@ -480,6 +480,8 @@ async function renderProfile() {
     const completion = me.completion || {};
     const fields = me.fields || {};
     const photos = me.photos || {};
+    const profilePhoto = photos.profile ? { ...photos.profile, src: await authImageUrl(photos.profile.url) } : null;
+    const privatePhotos = await Promise.all((photos.private || []).map(async (p) => ({ ...p, src: await authImageUrl(p.url) })));
     let ver;
     try { ver = await api('/api/verification/me'); } catch (e) {}
     const verCard = ver ? verificationCard(ver) : '';
@@ -495,12 +497,12 @@ async function renderProfile() {
       <div class="card">
         <h3>صورة الظهور</h3>
         <p class="auth-sub">هذه الصورة ستظهر للجميع — يمكنك استخدام صورتك الشخصية أو صورة رمزية (إلزامية)</p>
-        ${photoUploader('photo', 'صورة الظهور', photos.profile)}
+        ${photoUploader('photo', 'صورة الظهور', profilePhoto)}
       </div>
       <div class="card">
         <h3>قسم الصور الخاصة</h3>
         <p class="auth-sub">فقط صور تظهر لمن أعجبت بهم — صور حقيقية (حتى ٦)</p>
-        ${privateGallery(photos.private || [])}
+        ${privateGallery(privatePhotos)}
       </div>
       <div class="card">
         <h3>بيانات إضافية</h3>
@@ -645,7 +647,7 @@ function verificationCard(ver) {
 
 function photoUploader(kind, label, photo) {
   const pending = photo && photo.reviewStatus === 'pending' ? '<p class="badge">قيد المراجعة — سيظهر بعد موافقة الإدارة</p>' : '';
-  const preview = photo ? `<img src="${photo.url}" style="width:120px;height:120px;object-fit:cover;border-radius:12px;margin:8px 0" alt="${label}" />` : '';
+  const preview = photo && photo.src ? `<img src="${photo.src}" style="width:120px;height:120px;object-fit:cover;border-radius:12px;margin:8px 0" alt="${label}" />` : '';
   return `
     <div style="margin-bottom:16px">
       <label>${label}</label>
@@ -677,7 +679,7 @@ function bindPhotoUploader(kind, path) {
 function privateGallery(items) {
   const thumbs = items.map((p) => `
     <div style="position:relative;display:inline-block;margin:4px">
-      <img src="${p.url}" style="width:100px;height:100px;object-fit:cover;border-radius:12px" alt="صورة خاصة" />
+      <img src="${p.src}" style="width:100px;height:100px;object-fit:cover;border-radius:12px" alt="صورة خاصة" />
       <button data-del="${p.id}" style="position:absolute;top:-6px;right:-6px;width:22px;height:22px;border-radius:50%;background:#C0392B;color:#fff;border:none;font-size:12px;cursor:pointer;line-height:1">×</button>
     </div>`).join('');
   const remaining = 6 - items.length;
