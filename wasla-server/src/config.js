@@ -19,6 +19,8 @@ export const config = {
   corsOrigins: (process.env.WASLA_CORS_ORIGINS || '').split(',').map((s) => s.trim()).filter(Boolean),
   // Security
   trustProxy: process.env.WASLA_TRUST_PROXY === 'true',
+  // Persistent data directory (Render mounts a disk here). Must survive restarts/redeploys.
+  dataDir: process.env.WASLA_DATA_DIR || join(__dirname, '..', 'data'),
   uploadsDir: process.env.WASLA_UPLOADS_DIR || join(__dirname, '..', 'uploads'),
   // Payments: 'mock' (instant, no real money) or '066city'. Set to 'mock' to disable live gateways.
   paymentProvider: process.env.WASLA_PAYMENT_PROVIDER || 'mock',
