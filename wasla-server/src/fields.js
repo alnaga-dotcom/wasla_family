@@ -16,6 +16,7 @@ export const FIELD_SPECS = {
   religiosity: { label: 'الالتزام الديني',  domain: 'Religious',  tier: 2, weight: 5,  type: 'select', values: ['ملتزم', 'متوسط', 'مرن'] },
   lifestyle:   { label: 'نمط الحياة',       domain: 'Lifestyle',  tier: 2, weight: 5,  type: 'select', values: ['هادئ', 'منتظم', 'اجتماعي'] },
   height:      { label: 'الطول (سم)',       domain: 'Personal',   tier: 1, weight: 5,  type: 'number', values: null, min: 120, max: 220 },
+  weight:      { label: 'الوزن (كجم)',       domain: 'Personal',   tier: 2, weight: 5,  type: 'number', values: null, min: 30, max: 250 },
   health:      { label: 'حالات صحية',       domain: 'Health',     tier: 3, weight: 5,  type: 'select', values: ['لا توجد', 'أوضح لاحقًا'], sensitive: true },
   photo_done:  { label: 'الصورة الشخصية',   domain: 'Verification', tier: 1, weight: 5,  type: 'flag' },
   selfie_done: { label: 'التحقق بالسيلفي',  domain: 'Verification', tier: 1, weight: 10, type: 'flag' },

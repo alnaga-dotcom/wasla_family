@@ -493,10 +493,9 @@ async function renderProfile() {
       ${emailVerificationCard(me.user)}
       ${verCard}
       <div class="card">
-        <h3>الصور</h3>
-        <p class="auth-sub">صور حقيقية أو رمزية تظهر لجميع الأعضاء</p>
-        ${photoUploader('photo', 'الصورة الشخصية', photos.profile)}
-        ${photoUploader('selfie', 'سيلفي التحقق', photos.selfie)}
+        <h3>صورة الظهور</h3>
+        <p class="auth-sub">هذه الصورة ستظهر للجميع — يمكنك استخدام صورتك الشخصية أو صورة رمزية (إلزامية)</p>
+        ${photoUploader('photo', 'صورة الظهور', photos.profile)}
       </div>
       <div class="card">
         <h3>قسم الصور الخاصة</h3>
@@ -504,25 +503,16 @@ async function renderProfile() {
         ${privateGallery(photos.private || [])}
       </div>
       <div class="card">
-        <h3>تعديل البيانات</h3>
-        ${fieldEditor('birth_year', 'سنة الميلاد', 'number', fields.birth_year)}
-        ${fieldEditor('country', 'الدولة', 'select', fields.country, REG_COUNTRY)}
-        ${fieldEditor('governorate', 'المحافظة', 'select', fields.governorate, REG_GOVERNORATE)}
-        ${fieldEditor('city', 'المدينة', 'text', fields.city)}
-        ${fieldEditor('nationality', 'الجنسية', 'select', fields.nationality, REG_NATIONALITY)}
-        ${fieldEditor('profession', 'المهنة', 'select', fields.profession, REG_PROFESSION)}
-        ${fieldEditor('profession_other', 'المهنة (حدد)', 'text', fields.profession_other)}
-        ${fieldEditor('education', 'المؤهل الدراسي', 'select', fields.education, REG_EDUCATION)}
-        ${fieldEditor('religiosity', 'الالتزام الديني', 'select', fields.religiosity, ['ملتزم','متوسط','مرن'])}
-        ${fieldEditor('lifestyle', 'نمط الحياة', 'select', fields.lifestyle, ['هادئ','منتظم','اجتماعي'])}
+        <h3>بيانات إضافية</h3>
         ${fieldEditor('height', 'الطول (سم)', 'number', fields.height)}
+        ${fieldEditor('weight', 'الوزن (كجم)', 'number', fields.weight)}
+        <p class="auth-sub">اكتب نبذة جيدة عن نفسك — تُظهر للجميع وتُحسّن توافقك</p>
         ${fieldEditor('bio', 'نبذة عني', 'textarea', fields.bio)}
         <button id="saveProfile">حفظ</button>
         <div id="error"></div>
       </div>
     `;
     bindPhotoUploader('photo', '/api/profile/photo');
-    bindPhotoUploader('selfie', '/api/profile/selfie');
     bindPrivateGallery();
     const verBtn = el('requestVerification');
     if (verBtn) {
@@ -536,7 +526,7 @@ async function renderProfile() {
     const evBtn = el('goEmailVerify');
     if (evBtn) evBtn.addEventListener('click', () => renderEmailVerify(() => renderProfile()));
     el('saveProfile').addEventListener('click', async () => {
-      const keys = ['birth_year','country','governorate','city','nationality','profession','profession_other','education','religiosity','lifestyle','height','bio'];
+      const keys = ['height', 'weight', 'bio'];
       const updates = [];
       for (const key of keys) {
         const input = el('field-' + key);
