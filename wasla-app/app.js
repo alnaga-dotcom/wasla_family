@@ -532,10 +532,21 @@ async function renderProfile() {
         const input = el('field-' + key);
         if (input) updates.push({ field_key: key, value: String(input.value || '') });
       }
+      const saveBtn = el('saveProfile');
+      const errBox = el('error');
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'جاري الحفظ...';
       try {
         await api('/api/profile/me', 'PATCH', { fields: updates });
-        renderProfile();
-      } catch (err) { showError(el('error'), err); }
+        errBox.innerHTML = `<div class="success-msg">تم الحفظ بنجاح ✓</div>`;
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'حفظ';
+        setTimeout(() => setPage('discovery'), 900);
+      } catch (err) {
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'حفظ';
+        showError(errBox, err);
+      }
     });
   } catch (err) { showError(app, err); }
 }

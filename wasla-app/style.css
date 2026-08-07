@@ -63,6 +63,7 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
 
 .error { color: var(--danger); font-size: 14px; margin-top: 8px; }
 .error-field { color: var(--warning); font-size: 14px; margin-top: 8px; font-weight: 600; }
+.success-msg { color: var(--success); font-size: 14px; margin-top: 8px; font-weight: 600; }
 .brand-logo {
   display: block;
   text-align: center;
