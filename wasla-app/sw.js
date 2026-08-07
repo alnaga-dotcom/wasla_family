@@ -1,4 +1,4 @@
-const CACHE_NAME = 'wasla-v5';
+const CACHE_NAME = 'wasla-v6';
 const ASSETS = ['/', '/index.html', '/app.js', '/style.css', '/manifest.json', '/icon-192.png', '/icon-512.png', '/logo.png'];
 
 self.addEventListener('install', (e) => {
