@@ -203,9 +203,11 @@ async function updateBadge() {
 }
 
 function showError(container, err) {
+  const fieldErr = err?.field === true;
   let msg = err?.data?.message || err?.message || 'حدث خطأ';
-  if (!err?.status) msg = 'تعذر الاتصال بالخادم — حاول مرة أخرى بعد لحظات';
-  container.innerHTML = `<div class="error">${msg}</div>`;
+  if (!err?.status && !fieldErr) msg = 'تعذر الاتصال بالخادم — حاول مرة أخرى بعد لحظات';
+  const cls = fieldErr ? 'error-field' : 'error';
+  container.innerHTML = `<div class="${cls}">${msg}</div>`;
 }
 
 function brandHeader() {
@@ -264,7 +266,7 @@ function renderLogin() {
   el('toRegister').addEventListener('click', (e) => { e.preventDefault(); renderRegister(); });
   el('loginBtn').addEventListener('click', async () => {
     const phone = el('phone').value.trim();
-    if (!phone) { showError(el('error'), { message: 'أدخل رقم الهاتف' }); return; }
+    if (!phone) { showError(el('error'), { field: true, message: 'أدخل رقم الهاتف' }); return; }
     try {
       const data = await api('/api/auth/login', 'POST', { phone });
       state.phone = phone;
@@ -329,8 +331,8 @@ function renderRegister() {
         <select id="education">${options(REG_EDUCATION, '')}</select>
         <label>رقم الهاتف</label>
         <input id="phone" type="tel" placeholder="01xxxxxxxx" />
-        <label>البريد الإلكتروني (اختياري)</label>
-        <input id="email" type="email" placeholder="example@domain.com" />
+        <label>البريد الإلكتروني</label>
+        <input id="email" type="email" placeholder="example@domain.com" required />
       `;
     }
     app.innerHTML = `
@@ -364,18 +366,18 @@ function renderRegister() {
     const nextBtn = el('nextBtn');
     if (nextBtn) nextBtn.addEventListener('click', () => {
       if (step === 1) {
-        if (!el('name').value.trim()) { showError(el('error'), { message: 'أدخل اسم الظهور أولًا' }); return; }
+        if (!el('name').value.trim()) { showError(el('error'), { field: true, message: 'أكمل حقول التسجيل — اكتب اسم الظهور' }); return; }
         const by = el('birthYear').value.trim();
-        if (!by) { showError(el('error'), { message: 'أدخل سنة الميلاد' }); return; }
+        if (!by) { showError(el('error'), { field: true, message: 'أكمل حقول التسجيل — اكتب سنة الميلاد' }); return; }
         const byN = Number(by);
-        if (byN < 1948 || byN > 2008) { showError(el('error'), { message: 'سنة الميلاد يجب أن تكون بين ١٩٤٨ و ٢٠٠٨' }); return; }
+        if (byN < 1948 || byN > 2008) { showError(el('error'), { field: true, message: 'سنة الميلاد يجب أن تكون بين ١٩٤٨ و ٢٠٠٨' }); return; }
         reg.name = el('name').value.trim();
         reg.gender = el('gender').value;
         reg.firstName = el('firstName').value.trim();
         reg.familyName = el('familyName').value.trim();
         reg.birthYear = by;
       } else if (step === 2) {
-        if (!el('city').value.trim()) { showError(el('error'), { message: 'اكتب اسم المدينة' }); return; }
+        if (!el('city').value.trim()) { showError(el('error'), { field: true, message: 'أكمل حقول التسجيل — اكتب اسم المدينة' }); return; }
         reg.country = el('country').value;
         reg.nationality = el('nationality').value;
         reg.governorate = el('governorate').value;
@@ -401,12 +403,13 @@ function renderRegister() {
       if (!profession) missing.push('المهنة');
       if (!education) missing.push('المؤهل الدراسي');
       if (!phone) missing.push('رقم الهاتف');
+      if (!email) missing.push('البريد الإلكتروني');
       if (missing.length) {
-        showError(el('error'), { message: 'يرجى إكمال جميع الحقول: ' + missing.join('، ') });
+        showError(el('error'), { field: true, message: 'أكمل حقول التسجيل: ' + missing.join('، ') });
         return;
       }
       if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-        showError(el('error'), { message: 'البريد الإلكتروني غير صالح' });
+        showError(el('error'), { field: true, message: 'البريد الإلكتروني غير صالح' });
         return;
       }
       const fields = {
@@ -491,8 +494,14 @@ async function renderProfile() {
       ${verCard}
       <div class="card">
         <h3>الصور</h3>
+        <p class="auth-sub">صور حقيقية أو رمزية تظهر لجميع الأعضاء</p>
         ${photoUploader('photo', 'الصورة الشخصية', photos.profile)}
         ${photoUploader('selfie', 'سيلفي التحقق', photos.selfie)}
+      </div>
+      <div class="card">
+        <h3>قسم الصور الخاصة</h3>
+        <p class="auth-sub">فقط صور تظهر لمن أعجبت بهم — صور حقيقية (حتى ٦)</p>
+        ${privateGallery(photos.private || [])}
       </div>
       <div class="card">
         <h3>تعديل البيانات</h3>
@@ -514,6 +523,7 @@ async function renderProfile() {
     `;
     bindPhotoUploader('photo', '/api/profile/photo');
     bindPhotoUploader('selfie', '/api/profile/selfie');
+    bindPrivateGallery();
     const verBtn = el('requestVerification');
     if (verBtn) {
       verBtn.addEventListener('click', async () => {
@@ -660,6 +670,48 @@ function bindPhotoUploader(kind, path) {
       await apiUpload(path, formData);
       renderProfile();
     } catch (err) { showError(el(kind + '-error'), err); }
+  });
+}
+
+function privateGallery(items) {
+  const thumbs = items.map((p) => `
+    <div style="position:relative;display:inline-block;margin:4px">
+      <img src="${p.url}" style="width:100px;height:100px;object-fit:cover;border-radius:12px" alt="صورة خاصة" />
+      <button data-del="${p.id}" style="position:absolute;top:-6px;right:-6px;width:22px;height:22px;border-radius:50%;background:#C0392B;color:#fff;border:none;font-size:12px;cursor:pointer;line-height:1">×</button>
+    </div>`).join('');
+  const remaining = 6 - items.length;
+  const addBtn = remaining > 0
+    ? `<div style="margin-top:8px"><input type="file" id="private-input" accept="image/png,image/jpeg" style="display:block;margin-bottom:8px" /><button id="private-upload">رفع صورة خاصة</button></div>`
+    : '<p class="badge">وصلت للحد الأقصى (٦ صور)</p>';
+  return `
+    <div id="private-grid">${thumbs || '<p class="badge" style="margin:0">لا توجد صور خاصة بعد</p>'}</div>
+    ${addBtn}
+    <div id="private-error"></div>
+  `;
+}
+
+function bindPrivateGallery() {
+  const uploadBtn = el('private-upload');
+  if (uploadBtn) {
+    uploadBtn.addEventListener('click', async () => {
+      const input = el('private-input');
+      const file = input && input.files[0];
+      if (!file) return;
+      const formData = new FormData();
+      formData.append('photo', file);
+      try {
+        await apiUpload('/api/profile/private', formData);
+        renderProfile();
+      } catch (err) { showError(el('private-error'), err); }
+    });
+  }
+  document.querySelectorAll('[data-del]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      try {
+        await api('/api/profile/private/' + btn.dataset.del, 'DELETE');
+        renderProfile();
+      } catch (err) { showError(el('private-error'), err); }
+    });
   });
 }
 
@@ -1201,6 +1253,86 @@ async function renderAdminAudit(container) {
   `).join(''));
 }
 
+/* --- PWA install prompt --- */
+function isStandaloneApp() {
+  if (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) return true;
+  if (window.navigator && window.navigator.standalone === true) return true;
+  return false;
+}
+
+function isNativeApp() {
+  return typeof window !== 'undefined' && window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform();
+}
+
+function hideInstallBanner() {
+  const b = document.getElementById('install-banner');
+  if (b) b.remove();
+}
+
+function initInstallPrompt() {
+  if (isNativeApp() || isStandaloneApp()) return;
+  const hiddenUntil = Number(localStorage.getItem('wasla_install_hidden_until') || 0);
+  if (hiddenUntil > Date.now()) return;
+
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent || '');
+  let deferred = null;
+
+  const showBanner = (onInstall) => {
+    if (document.getElementById('install-banner')) return;
+    const div = document.createElement('div');
+    div.id = 'install-banner';
+    div.className = 'install-banner';
+    div.innerHTML = `
+      <div class="install-card">
+        <img class="install-icon" src="logo.png" alt="وصلــه" />
+        <div class="install-text">
+          <strong>ثبّت تطبيق وصلــه</strong>
+          <span>أضِفه إلى شاشتك الرئيسية لفتح أسرع مثل التطبيقات</span>
+        </div>
+        <button class="btn-primary install-cta">${isIOS ? 'طريقة التثبيت' : 'تثبيت الآن'}</button>
+        <button class="install-close" aria-label="إغلاق">×</button>
+      </div>
+    `;
+    div.querySelector('.install-close').addEventListener('click', () => {
+      localStorage.setItem('wasla_install_hidden_until', String(Date.now() + 7 * 24 * 60 * 60 * 1000));
+      hideInstallBanner();
+    });
+    div.querySelector('.install-cta').addEventListener('click', () => {
+      if (isIOS) {
+        const span = div.querySelector('.install-text span');
+        span.textContent = 'افتح قائمة ⋯ ثم اختر "إضافة إلى الشاشة الرئيسية"';
+        div.querySelector('.install-cta').style.display = 'none';
+        return;
+      }
+      if (deferred) {
+        const p = deferred;
+        deferred = null;
+        p.prompt();
+        p.userChoice.then((choice) => {
+          if (choice.outcome === 'accepted') {
+            localStorage.removeItem('wasla_install_hidden_until');
+            hideInstallBanner();
+          }
+        }).catch(() => {});
+      }
+    });
+    document.body.appendChild(div);
+  };
+
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferred = e;
+    showBanner();
+  });
+
+  window.addEventListener('appinstalled', () => {
+    hideInstallBanner();
+    localStorage.setItem('wasla_install_hidden_until', String(Date.now() + 7 * 24 * 60 * 60 * 1000));
+  });
+
+  if (isIOS) showBanner();
+}
+
 function init() {
   document.querySelectorAll('#nav button').forEach((btn) => {
     btn.addEventListener('click', () => setPage(btn.dataset.page));
@@ -1219,6 +1351,7 @@ function init() {
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' });
   }
+  initInstallPrompt();
 }
 
 loadConfig().then((base) => {

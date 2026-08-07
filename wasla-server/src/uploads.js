@@ -40,6 +40,20 @@ export function storePhoto(userId, kind, file) {
     return { ok: false, code: 'WRITE_FAILED', detail: e.message };
   }
 
+  if (kind === 'private') {
+    // Private gallery (match-only): max 6 photos, always stored as-is (no public moderation queue).
+    const count = db.prepare("SELECT COUNT(*) AS c FROM user_photos WHERE user_id = ? AND kind = 'private' AND status = 'active'").get(userId).c;
+    if (count >= 6) {
+      try { unlinkSync(path); } catch {}
+      return { ok: false, code: 'PRIVATE_LIMIT_REACHED', maxPrivate: 6, detail: 'الحد الأقصى ٦ صور خاصة' };
+    }
+    const r = db.prepare(
+      `INSERT INTO user_photos (user_id, kind, filename, original_name, mime_type, size_bytes)
+       VALUES (?, ?, ?, ?, ?, ?)`
+    ).run(userId, kind, name, file.originalname || name, mime, file.size);
+    return { ok: true, id: Number(r.lastInsertRowid), filename: name, path, pending: false };
+  }
+
   if (kind === 'profile') {
     // Avatar moderation: new upload goes to review; only ONE pending at a time,
     // and the current approved avatar stays visible until the new one is approved.
@@ -74,6 +88,18 @@ export function getPhotoByFilename(filename) {
 
 export function getUserActivePhoto(userId, kind) {
   return db.prepare('SELECT * FROM user_photos WHERE user_id = ? AND kind = ? AND status = ? ORDER BY id DESC LIMIT 1').get(userId, kind, 'active');
+}
+
+export function getUserPrivatePhotos(userId) {
+  return db.prepare("SELECT * FROM user_photos WHERE user_id = ? AND kind = 'private' AND status = 'active' ORDER BY id DESC").all(userId);
+}
+
+// True only when both users have liked each other (mutual match). Used to gate private photos.
+export function isMutualMatch(a, b) {
+  const rows = db.prepare(
+    `SELECT action FROM match_actions WHERE (actor_id = ? AND target_id = ?) OR (actor_id = ? AND target_id = ?)`
+  ).all(a, b, b, a);
+  return rows.length === 2 && rows.every((r) => r.action === 'like');
 }
 
 // Latest photo of a kind regardless of review state — used so the owner can see their pending avatar.
@@ -136,11 +162,23 @@ export function deletePhoto(userId, kind) {
   return { ok: true };
 }
 
+export function deletePrivatePhoto(userId, photoId) {
+  const photo = db.prepare("SELECT * FROM user_photos WHERE id = ? AND user_id = ? AND kind = 'private'").get(photoId, userId);
+  if (!photo) return { ok: false, code: 'NOT_FOUND' };
+  db.prepare("UPDATE user_photos SET status = 'deleted' WHERE id = ?").run(photo.id);
+  try { unlinkSync(join(config.uploadsDir, photo.filename)); } catch {}
+  return { ok: true };
+}
+
 export function canViewPhoto(photo, viewerId, viewerRole) {
   if (!photo || photo.status !== 'active') return false;
   const isStaff = viewerRole === 'admin' || viewerRole === 'super_admin';
   if (isStaff) return true;
   if (photo.user_id === viewerId) return true;
+  // Private photos (real, match-only gallery): visible only on mutual like.
+  if (photo.kind === 'private') {
+    return isMutualMatch(photo.user_id, viewerId);
+  }
   // Pending avatars are not visible to anyone but the owner/admins until approved.
   if (photo.review_status !== 'approved') return false;
   // Selfie is private to owner/admin.

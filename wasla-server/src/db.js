@@ -428,6 +428,35 @@ function migrate() {
     db.exec('ALTER TABLE user_photos ADD COLUMN review_reason TEXT');
   }
 
+  // Allow 'private' photos (match-only gallery) by recreating the table (SQLite cannot ALTER a CHECK)
+  const photoSql = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='user_photos'").get()?.sql || '';
+  if (photoSql && !photoSql.includes("'private'")) {
+    db.exec(`
+      PRAGMA foreign_keys = OFF;
+      CREATE TABLE user_photos_new (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL REFERENCES users(id),
+        kind TEXT NOT NULL CHECK (kind IN ('profile','selfie','private')),
+        filename TEXT NOT NULL,
+        original_name TEXT,
+        mime_type TEXT NOT NULL,
+        size_bytes INTEGER NOT NULL DEFAULT 0,
+        status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active','deleted')),
+        review_status TEXT NOT NULL DEFAULT 'approved' CHECK (review_status IN ('approved','pending','rejected')),
+        reviewed_by INTEGER,
+        reviewed_at TEXT,
+        review_reason TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+      INSERT INTO user_photos_new (id, user_id, kind, filename, original_name, mime_type, size_bytes, status, review_status, reviewed_by, reviewed_at, review_reason, created_at)
+        SELECT id, user_id, kind, filename, original_name, mime_type, size_bytes, status, review_status, reviewed_by, reviewed_at, review_reason, created_at FROM user_photos;
+      DROP TABLE user_photos;
+      ALTER TABLE user_photos_new RENAME TO user_photos;
+      PRAGMA foreign_keys = ON;
+    `);
+    db.exec('CREATE INDEX IF NOT EXISTS idx_user_photos_user ON user_photos(user_id, kind)');
+  }
+
   const roleAllowed = "'user','viewer','moderator','verification_officer','customer_support','rule_admin','subscription_admin','admin','super_admin'";
   if (!cols.includes('role')) {
     db.exec(`ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'user' CHECK (role IN (${roleAllowed}))`);

@@ -5,7 +5,7 @@ import { authRequired } from '../middleware/auth.js';
 import { FIELD_SPECS, completionFor, isValidFieldValue } from '../fields.js';
 import { checkField } from '../moderation.js';
 import { publish } from '../events.js';
-import { getUserActivePhoto, photoUrl } from '../uploads.js';
+import { getUserActivePhoto, getUserPrivatePhotos, photoUrl } from '../uploads.js';
 import { updateUserTrustLevel } from '../trust.js';
 
 const router = Router();
@@ -21,14 +21,17 @@ function fieldsFor(userId) {
 // GET /api/profile/me  — own profile, includes completion and photos (Wasla_05 §9e)
 router.get('/me', (req, res) => {
   const fields = fieldsFor(req.userId);
-  const u = db.prepare('SELECT id, name, phone, gender, status, role, trust_level, created_at FROM users WHERE id = ?').get(req.userId);
+  const u = db.prepare('SELECT id, name, phone, email, email_verified_at, gender, status, role, trust_level, created_at FROM users WHERE id = ?').get(req.userId);
   const profilePhoto = getUserActivePhoto(req.userId, 'profile');
   const selfiePhoto = getUserActivePhoto(req.userId, 'selfie');
+  const privatePhotos = getUserPrivatePhotos(req.userId);
   res.json({
     user: {
       id: u.id,
       name: u.name,
       phone: u.phone,
+      email: u.email,
+      emailVerified: !!u.email_verified_at,
       gender: u.gender,
       status: u.status,
       role: u.role,
@@ -40,6 +43,7 @@ router.get('/me', (req, res) => {
     photos: {
       profile: profilePhoto ? { id: profilePhoto.id, url: photoUrl(profilePhoto) } : null,
       selfie: selfiePhoto ? { id: selfiePhoto.id, url: photoUrl(selfiePhoto) } : null,
+      private: privatePhotos.map((p) => ({ id: p.id, url: photoUrl(p) })),
     },
   });
 });

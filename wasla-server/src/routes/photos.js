@@ -12,9 +12,11 @@ import {
   photoUrl,
   getUserActivePhoto,
   getLatestPhoto,
+  getUserPrivatePhotos,
   approvePhoto,
   rejectPhoto,
   deletePhoto,
+  deletePrivatePhoto,
   getMaxSize,
   isAllowedFile,
   evaluateImage,
@@ -55,13 +57,34 @@ router.post('/profile/photo', authRequired, upload.single('photo'), async (req, 
   res.status(201).json({ ok: true, photoId: result.id, status: 'pending', url: photoUrl(result) });
 });
 
+// POST /api/profile/private — upload a private photo (match-only gallery, max 6)
+router.post('/profile/private', authRequired, upload.single('photo'), (req, res) => {
+  const file = req.file;
+  if (!file) return apiError(res, 422, 'INVALID_FILE', 'ملف الصورة غير صالح أو مفقود', 'photo');
+  const result = storePhoto(req.userId, 'private', file);
+  if (!result.ok) return apiError(res, 422, result.code, result.detail || 'فشل رفع الصورة', 'photo', result);
+  publish('PrivatePhotoUploaded', { photoId: result.id }, 'api', { userId: req.userId, entityType: 'photo', entityId: String(result.id) });
+  res.status(201).json({ ok: true, photoId: result.id, url: photoUrl(result) });
+});
+
+// DELETE /api/profile/private/:id — remove one private photo
+router.delete('/profile/private/:id', authRequired, (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id)) return apiError(res, 422, 'INVALID_ID', 'معرّف صورة غير صالح');
+  const result = deletePrivatePhoto(req.userId, id);
+  if (!result.ok) return apiError(res, 404, 'PHOTO_NOT_FOUND', 'الصورة غير موجودة');
+  res.json({ ok: true });
+});
+
 // GET /api/profile/photos — list my photos with review state
 router.get('/profile/photos', authRequired, (req, res) => {
   const profile = getLatestPhoto(req.userId, 'profile');
   const selfie = getUserActivePhoto(req.userId, 'selfie');
+  const privates = getUserPrivatePhotos(req.userId);
   res.json({
     profile: profile ? { id: profile.id, url: photoUrl(profile), reviewStatus: profile.review_status } : null,
     selfie: selfie ? { id: selfie.id, url: photoUrl(selfie) } : null,
+    private: privates.map((p) => ({ id: p.id, url: photoUrl(p) })),
   });
 });
 

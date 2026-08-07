@@ -1,5 +1,5 @@
-const CACHE_NAME = 'wasla-v2';
-const ASSETS = ['/', '/index.html', '/app.js', '/style.css', '/manifest.json'];
+const CACHE_NAME = 'wasla-v4';
+const ASSETS = ['/', '/index.html', '/app.js', '/style.css', '/manifest.json', '/icon-192.png', '/icon-512.png', '/logo.png'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE_NAME).then((c) => c.addAll(ASSETS)));
