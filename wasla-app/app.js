@@ -270,7 +270,7 @@ function renderLogin() {
     try {
       const data = await api('/api/auth/login', 'POST', { phone });
       state.phone = phone;
-      renderVerify(data.dev?.otp);
+      renderVerify(data.dev?.otp, { mode: 'login', onSuccess: () => setPage('discovery') });
     } catch (err) { showError(el('error'), err); }
   });
 }
@@ -436,39 +436,59 @@ function renderRegister() {
       try {
         const data = await api('/api/auth/register', 'POST', payload);
         state.phone = payload.phone;
-        setToken(data.token, data.user);
-        renderProfile();
+        renderVerify(data.dev?.otp, { mode: 'register', onSuccess: () => renderProfile() });
       } catch (err) { showError(el('error'), err); }
     });
   }
   draw();
 }
 
-function renderVerify(hint) {
+function renderVerify(hint, opts = {}) {
   const app = el('app');
+  const isRegister = opts.mode === 'register';
   app.innerHTML = `
     <div class="auth-screen">
       <header class="auth-hero auth-hero-compact">${brandHeader()}</header>
       <div class="auth-body">
         <div class="card auth-card">
           <h1 class="auth-title">رمز التحقق</h1>
-          <p class="auth-sub">أدخل الرمز المرسل إلى بريدك الإلكتروني (تحقق من البريد المزعج أيضًا)</p>
+          <p class="auth-sub">${isRegister ? 'أدخل الرمز المرسل إلى بريدك الإلكتروني لإتمام إنشاء حسابك (تحقق من البريد المزعج أيضًا)' : 'أدخل الرمز المرسل إلى بريدك الإلكتروني (تحقق من البريد المزعج أيضًا)'}</p>
           ${hint ? `<p class="badge">رمز التجربة: ${hint}</p>` : ''}
           <input id="code" type="text" placeholder="الرمز" />
           <button class="btn-primary" id="verifyBtn">تحقق</button>
+          <button class="btn-ghost" id="resendBtn" style="margin-top:8px">إعادة إرسال الرمز</button>
           <div id="error"></div>
         </div>
       </div>
     </div>
   `;
+  const finish = (data) => {
+    setToken(data.token, data.user);
+    if (opts.onSuccess) opts.onSuccess();
+    else setPage('discovery');
+  };
   el('verifyBtn').addEventListener('click', async () => {
     const code = el('code').value.trim();
     if (!code) { showError(el('error'), { message: 'أدخل رمز التحقق' }); return; }
     try {
       const data = await api('/api/auth/otp/verify', 'POST', { phone: state.phone, code });
-      setToken(data.token, data.user);
-      renderProfile();
+      finish(data);
     } catch (err) { showError(el('error'), err); }
+  });
+  el('resendBtn').addEventListener('click', async (e) => {
+    e.preventDefault();
+    const btn = el('resendBtn');
+    btn.disabled = true;
+    btn.textContent = 'جاري الإرسال...';
+    try {
+      await api('/api/auth/otp/resend', 'POST', { phone: state.phone });
+      btn.textContent = 'تم إرسال رمز جديد ✓';
+      setTimeout(() => { btn.disabled = false; btn.textContent = 'إعادة إرسال الرمز'; }, 5000);
+    } catch (err) {
+      btn.disabled = false;
+      btn.textContent = 'إعادة إرسال الرمز';
+      showError(el('error'), err);
+    }
   });
 }
 

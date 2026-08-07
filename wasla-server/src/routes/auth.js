@@ -7,10 +7,13 @@ import { authRequired } from '../middleware/auth.js';
 import { completionFor, isValidFieldValue } from '../fields.js';
 import { publish } from '../events.js';
 import { startInstance, transition } from '../workflows.js';
-import { sendOtp } from '../otp/send.js';
+import { sendOtp, OTP_PROVIDER } from '../otp/send.js';
 import { check as checkModeration } from '../moderation.js';
 
 const router = Router();
+
+// منع التخمين: يُلغى الرمز بعد ٥ محاولات خاطئة (مفتاح = user_id:purpose)
+const otpAttempts = new Map();
 
 function saveProfileField(userId, fieldKey, value) {
   const check = isValidFieldValue(fieldKey, value);
@@ -29,6 +32,12 @@ function issueOtp(userId, purpose) {
   db.prepare('INSERT INTO otp_codes (user_id, code, purpose, expires_at) VALUES (?, ?, ?, ?)')
     .run(userId, code, purpose, expires);
   return code;
+}
+
+// يبطل الرموز السابقة غير المستخدمة لنفس الغرض حتى لا تصلح إلا أحدث رمز
+function invalidateOldOtps(userId, purpose) {
+  db.prepare('UPDATE otp_codes SET used_at = ? WHERE user_id = ? AND purpose = ? AND used_at IS NULL')
+    .run(nowIso(), userId, purpose);
 }
 
 function issueSession(userId) {
@@ -61,7 +70,7 @@ function isValidEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email).trim());
 }
 
-// POST /api/auth/register  { name, phone, email?, gender, fields? }  → instant account, no email verification
+// POST /api/auth/register  { name, phone, email, gender, fields? }  → account + email OTP (no token yet)
 router.post('/register', async (req, res) => {
   const { name, phone, email, gender, fields } = req.body || {};
   if (!name || String(name).trim().length < 3 || String(name).trim().length > 60) {
@@ -77,23 +86,23 @@ router.post('/register', async (req, res) => {
     return apiError(res, 422, 'INVALID_GENDER', 'اختر الجنس (male / female)', 'gender');
   }
   const emailNorm = String(email || '').trim() || null;
-  if (emailNorm && !isValidEmail(emailNorm)) {
-    return apiError(res, 422, 'INVALID_EMAIL', 'البريد الإلكتروني غير صالح', 'email');
+  if (!emailNorm || !isValidEmail(emailNorm)) {
+    return apiError(res, 422, 'INVALID_EMAIL', 'البريد الإلكتروني إلزامي وغير صالح', 'email');
   }
 
   const existing = db.prepare('SELECT * FROM users WHERE phone = ?').get(norm);
-  if (existing && existing.status === 'active') {
-    return apiError(res, 409, 'ALREADY_REGISTERED', 'هذا الرقم مسجل بالفعل — سجّل الدخول برمز التحقق', 'phone');
-  }
-
   let userId;
   if (existing) {
+    if (existing.status === 'active') {
+      return apiError(res, 409, 'ALREADY_REGISTERED', 'هذا الرقم مسجل بالفعل — سجّل الدخول برمز التحقق', 'phone');
+    }
+    // استئناف تسجيل مكتمل جزئيًا (pending): احتفظ بالرقم وحدّث البيانات
+    db.prepare('UPDATE users SET name = ?, gender = ?, email = ? WHERE id = ?')
+      .run(String(name).trim(), gender, emailNorm, existing.id);
     userId = existing.id;
-    db.prepare('UPDATE users SET status = ?, name = ?, gender = ?, email = COALESCE(?, email) WHERE id = ?')
-      .run('active', String(name).trim(), gender, emailNorm, userId);
   } else {
     const r = db.prepare('INSERT INTO users (name, phone, email, gender, status) VALUES (?, ?, ?, ?, ?)')
-      .run(String(name).trim(), norm, emailNorm, gender, 'active');
+      .run(String(name).trim(), norm, emailNorm, gender, 'pending');
     userId = Number(r.lastInsertRowid);
   }
 
@@ -104,15 +113,42 @@ router.post('/register', async (req, res) => {
     }
   }
 
-  const token = issueSession(userId);
+  invalidateOldOtps(userId, 'register');
+  const code = issueOtp(userId, 'register');
+  try {
+    await sendOtp({ phone: norm, email: emailNorm, code, channel: 'email' });
+  } catch (err) {
+    console.error('OTP send failed:', err && err.response ? err.response : (err && err.message));
+    return apiError(res, 502, 'OTP_SEND_FAILED', 'تعذر إرسال رمز التحقق، جرّب مرة أخرى', 'email');
+  }
   publish('UserRegistered', { userId, name: String(name).trim(), gender }, 'api', { userId, entityType: 'user', entityId: String(userId) });
-  publish('UserLoggedIn', { userId, via: 'register' }, 'api', { userId, entityType: 'user', entityId: String(userId) });
   try {
     const inst = startInstance('account', 'user', userId, { name: String(name).trim(), gender }, 'registered');
-    transition(inst.instanceId, 'active', { actorId: userId, reason: 'instant_register' });
+    transition(inst.instanceId, 'active', { actorId: userId, reason: 'pending_registered' });
   } catch (e) { /* workflow may already be advanced */ }
 
-  res.status(201).json({ token, user: publicUser(userId) });
+  const dev = config.devOtpEcho ? { otp: code, note: 'dev only — يظهر في الرد للتجربة المحلية فقط' } : undefined;
+  res.status(201).json({ sent: true, userId, expiresInSec: config.otpExpiryMs / 1000, dev });
+});
+
+// POST /api/auth/otp/resend  { phone }  → re-issue the most recent OTP (register or login)
+router.post('/otp/resend', async (req, res) => {
+  const { phone } = req.body || {};
+  const norm = normalizePhone(phone);
+  if (!norm) return apiError(res, 422, 'INVALID_PHONE', 'رقم هاتف غير صالح — محلي (01xxxxxxxxx) أو دولي (+رمز الدولة...)', 'phone');
+  const user = db.prepare('SELECT * FROM users WHERE phone = ?').get(norm);
+  if (!user) return apiError(res, 404, 'NOT_REGISTERED', 'هذا الرقم غير مسجل — أنشئ حسابًا أولًا', 'phone');
+  const purpose = user.status === 'pending' || !user.email_verified_at ? 'register' : 'login';
+  invalidateOldOtps(user.id, purpose);
+  const code = issueOtp(user.id, purpose);
+  try {
+    await sendOtp({ phone: norm, email: user.email, code, channel: 'email' });
+  } catch (err) {
+    console.error('OTP resend failed:', err && err.response ? err.response : (err && err.message));
+    return apiError(res, 502, 'OTP_SEND_FAILED', 'تعذر إرسال رمز التحقق، جرّب مرة أخرى', 'phone');
+  }
+  const dev = config.devOtpEcho ? { otp: code } : undefined;
+  res.json({ sent: true, expiresInSec: config.otpExpiryMs / 1000, dev });
 });
 
 // POST /api/auth/email/request  { email }  → attach email + send verification OTP (Phase 1)
@@ -126,6 +162,7 @@ router.post('/email/request', authRequired, async (req, res) => {
     return apiError(res, 409, 'EMAIL_TAKEN', 'هذا البريد مسجل لعضو آخر', 'email');
   }
   db.prepare('UPDATE users SET email = ?, email_verified_at = NULL WHERE id = ?').run(email, req.userId);
+  invalidateOldOtps(req.userId, 'email_verify');
   const code = issueOtp(req.userId, 'email_verify');
   try {
     await sendOtp({ phone: db.prepare('SELECT phone FROM users WHERE id = ?').get(req.userId).phone, email, code, channel: 'email' });
@@ -189,7 +226,7 @@ router.post('/phone/verify', authRequired, (req, res) => {
   res.json({ ok: true, user: publicUser(req.userId) });
 });
 
-// POST /api/auth/otp/verify  { phone, code }
+// POST /api/auth/otp/verify  { phone, code }  → unified verify (register + login)
 router.post('/otp/verify', (req, res) => {
   const { phone, code } = req.body || {};
   const norm = normalizePhone(phone);
@@ -204,12 +241,34 @@ router.post('/otp/verify', (req, res) => {
      ORDER BY id DESC LIMIT 1`
   ).get(user.id);
 
-  if (!otp || otp.code !== String(code)) return apiError(res, 401, 'WRONG_CODE', 'الرمز غير صحيح', 'code');
-  if (new Date(otp.expires_at + 'Z') < new Date()) return apiError(res, 401, 'CODE_EXPIRED', 'انتهت صلاحية الرمز — اطلب رمزًا جديدًا', 'code');
+  if (!otp) return apiError(res, 401, 'NO_CODE', 'لا يوجد رمز صالح — اطلب رمزًا جديدًا', 'code');
+
+  const attemptKey = `${user.id}:${otp.id}`;
+  const attempts = (otpAttempts.get(attemptKey) || 0) + 1;
+  if (otp.code !== String(code)) {
+    otpAttempts.set(attemptKey, attempts);
+    if (attempts >= 5) {
+      // إلغاء الرمز بعد تجاوز الحد حتى لا يستمر التخمين
+      db.prepare('UPDATE otp_codes SET used_at = ? WHERE id = ?').run(nowIso(), otp.id);
+      otpAttempts.delete(attemptKey);
+      return apiError(res, 401, 'CODE_EXHAUSTED', 'محاولات كثيرة خاطئة — اطلب رمزًا جديدًا', 'code');
+    }
+    return apiError(res, 401, 'WRONG_CODE', 'الرمز غير صحيح', 'code');
+  }
+  if (new Date(otp.expires_at + 'Z') < new Date()) {
+    return apiError(res, 401, 'CODE_EXPIRED', 'انتهت صلاحية الرمز — اطلب رمزًا جديدًا', 'code');
+  }
+  otpAttempts.delete(attemptKey);
 
   db.prepare('UPDATE otp_codes SET used_at = ? WHERE id = ?').run(nowIso(), otp.id);
   if (user.status === 'pending') db.prepare('UPDATE users SET status = ? WHERE id = ?').run('active', user.id);
 
+  // الرمز المرسل عبر البريد يثبت ملكية البريد → يفعل البريد تلقائيًا
+  const verifiedEmail = OTP_PROVIDER === 'email' || otp.purpose === 'register';
+  if (verifiedEmail) {
+    db.prepare('UPDATE users SET email_verified_at = ? WHERE id = ?').run(nowIso(), user.id);
+    publish('EmailVerified', { userId: user.id }, 'api', { userId: user.id, entityType: 'user', entityId: String(user.id) });
+  }
   publish('PhoneVerified', { userId: user.id }, 'api', { userId: user.id, entityType: 'user', entityId: String(user.id) });
   // Transition account workflow registered -> phone_verified -> active
   try {
@@ -223,20 +282,35 @@ router.post('/otp/verify', (req, res) => {
   res.json({ token, user: publicUser(user.id) });
 });
 
-// POST /api/auth/login  { phone }  → sends OTP (register-first flow)
+// POST /api/auth/login  { phone }  → sends OTP to email (register-first flow)
 router.post('/login', async (req, res) => {
   const { phone } = req.body || {};
   const norm = normalizePhone(phone);
   if (!norm) return apiError(res, 422, 'INVALID_PHONE', 'رقم هاتف غير صالح — محلي (01xxxxxxxxx) أو دولي (+رمز الدولة...)', 'phone');
 
   const user = db.prepare('SELECT * FROM users WHERE phone = ?').get(norm);
-  if (!user || user.status !== 'active') {
+  if (!user) {
     return apiError(res, 404, 'NOT_REGISTERED', 'هذا الرقم غير مسجل — أنشئ حسابًا أولًا', 'phone');
+  }
+  if (user.status === 'pending') {
+    // تسجيل لم يكتمل: أعد إرسال رمز التسجيل لإتمام تفعيل الحساب
+    invalidateOldOtps(user.id, 'register');
+    const code = issueOtp(user.id, 'register');
+    try {
+      await sendOtp({ phone: norm, email: user.email, code, channel: 'email' });
+    } catch (err) {
+      console.error('OTP send failed:', err && err.response ? err.response : (err && err.message));
+      return apiError(res, 502, 'OTP_SEND_FAILED', 'تعذر إرسال رمز التحقق، جرّب مرة أخرى', 'phone');
+    }
+    const dev = config.devOtpEcho ? { otp: code } : undefined;
+    res.json({ sent: true, pending: true, userId: user.id, expiresInSec: config.otpExpiryMs / 1000, dev });
+    return;
   }
   if (!user.email) {
     return apiError(res, 422, 'EMAIL_MISSING', 'أضف بريدك الإلكتروني وتفعيله من صفحة الملف، ثم سجّل الدخول برمز التحقق', 'phone');
   }
 
+  invalidateOldOtps(user.id, 'login');
   const code = issueOtp(user.id, 'login');
   try {
     await sendOtp({ phone: norm, email: user.email, code, channel: 'email' });
@@ -245,7 +319,7 @@ router.post('/login', async (req, res) => {
   }
   const dev = config.devOtpEcho ? { otp: code } : undefined;
   publish('UserLoggedIn', { userId: user.id, via: 'otp_request' }, 'api', { userId: user.id, entityType: 'user', entityId: String(user.id) });
-  res.json({ userId: user.id, expiresInSec: config.otpExpiryMs / 1000, dev });
+  res.json({ sent: true, userId: user.id, expiresInSec: config.otpExpiryMs / 1000, dev });
 });
 
 // GET /api/auth/me
