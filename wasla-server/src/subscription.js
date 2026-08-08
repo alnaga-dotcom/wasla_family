@@ -6,7 +6,7 @@ export const DEFAULT_QUOTAS = {
   messages_per_day: 5,
 };
 
-export function activeSubscription(userId) {
+export async function activeSubscription(userId) {
   const now = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
   return db.prepare(
     `SELECT s.*, p.features, p.name AS plan_name
@@ -20,8 +20,8 @@ export function activeSubscription(userId) {
   ).get(userId, now, now);
 }
 
-export function hasEntitlement(userId, entitlement) {
-  const sub = activeSubscription(userId);
+export async function hasEntitlement(userId, entitlement) {
+  const sub = await activeSubscription(userId);
   if (!sub) return false;
   let features = [];
   try {
@@ -30,101 +30,101 @@ export function hasEntitlement(userId, entitlement) {
   return features.includes(entitlement);
 }
 
-export function isPremium(userId) {
-  return !!activeSubscription(userId);
+export async function isPremium(userId) {
+  return !!(await activeSubscription(userId));
 }
 
 function today() {
   return new Date().toISOString().slice(0, 10);
 }
 
-export function quotaToday(userId) {
-  const row = db.prepare('SELECT likes_used, messages_used FROM daily_quotas WHERE user_id = ? AND day = ?').get(userId, today());
+export async function quotaToday(userId) {
+  const row = await db.prepare('SELECT likes_used, messages_used FROM daily_quotas WHERE user_id = ? AND day = ?').get(userId, today());
   return row || { likes_used: 0, messages_used: 0 };
 }
 
-export function canLike(userId) {
-  if (isPremium(userId)) return true;
-  const used = quotaToday(userId).likes_used;
+export async function canLike(userId) {
+  if (await isPremium(userId)) return true;
+  const used = (await quotaToday(userId)).likes_used;
   return used < DEFAULT_QUOTAS.likes_per_day;
 }
 
-export function canSendMessage(userId) {
-  if (isPremium(userId)) return true;
-  const used = quotaToday(userId).messages_used;
+export async function canSendMessage(userId) {
+  if (await isPremium(userId)) return true;
+  const used = (await quotaToday(userId)).messages_used;
   return used < DEFAULT_QUOTAS.messages_per_day;
 }
 
-export function useLike(userId) {
-  db.prepare(
+export async function useLike(userId) {
+  await db.prepare(
     `INSERT INTO daily_quotas (user_id, day, likes_used) VALUES (?, ?, 1)
-     ON CONFLICT(user_id, day) DO UPDATE SET likes_used = likes_used + 1`
+     ON DUPLICATE KEY UPDATE likes_used = likes_used + 1`
   ).run(userId, today());
 }
 
-export function useMessage(userId) {
-  db.prepare(
+export async function useMessage(userId) {
+  await db.prepare(
     `INSERT INTO daily_quotas (user_id, day, messages_used) VALUES (?, ?, 1)
-     ON CONFLICT(user_id, day) DO UPDATE SET messages_used = messages_used + 1`
+     ON DUPLICATE KEY UPDATE messages_used = messages_used + 1`
   ).run(userId, today());
 }
 
-export function resetQuotasForDay(userId, day) {
-  db.prepare('DELETE FROM daily_quotas WHERE user_id = ? AND day = ?').run(userId, day);
+export async function resetQuotasForDay(userId, day) {
+  await db.prepare('DELETE FROM daily_quotas WHERE user_id = ? AND day = ?').run(userId, day);
 }
 
-export function listPlans() {
+export async function listPlans() {
   return db.prepare("SELECT * FROM plans WHERE status = 'active' ORDER BY price_egp").all();
 }
 
-export function planByCode(code) {
+export async function planByCode(code) {
   return db.prepare("SELECT * FROM plans WHERE code = ? AND status = 'active'").get(code);
 }
 
-export function createPendingSubscription(userId, planCode, months = null) {
-  const plan = planByCode(planCode);
+export async function createPendingSubscription(userId, planCode, months = null) {
+  const plan = await planByCode(planCode);
   if (!plan) return null;
   const duration = months || plan.duration_months;
   const startsAt = new Date().toISOString().slice(0, 10);
   const endsAt = new Date(Date.now() + duration * 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-  const r = db.prepare(
+  const r = await db.prepare(
     `INSERT INTO subscriptions (user_id, plan_code, status, starts_at, ends_at, auto_renew) VALUES (?, ?, 'pending', ?, ?, 0)`
   ).run(userId, planCode, startsAt, endsAt);
   const subscriptionId = Number(r.lastInsertRowid);
-  publish('SubscriptionCreated', { userId, planCode, subscriptionId }, 'api', { userId, entityType: 'subscription', entityId: String(subscriptionId) });
+  await publish('SubscriptionCreated', { userId, planCode, subscriptionId }, 'api', { userId, entityType: 'subscription', entityId: String(subscriptionId) });
   return { subscriptionId, planCode, startsAt, endsAt };
 }
 
-export function activateSubscription(subscriptionId) {
-  const r = db.prepare(
+export async function activateSubscription(subscriptionId) {
+  const r = await db.prepare(
     `UPDATE subscriptions SET status = 'active' WHERE id = ? AND status = 'pending'`
   ).run(subscriptionId);
   if (!r.changes) return false;
-  const sub = db.prepare('SELECT user_id, plan_code FROM subscriptions WHERE id = ?').get(subscriptionId);
-  publish('SubscriptionActivated', { userId: sub.user_id, planCode: sub.plan_code, subscriptionId }, 'api', { userId: sub.user_id, entityType: 'subscription', entityId: String(subscriptionId) });
+  const sub = await db.prepare('SELECT user_id, plan_code FROM subscriptions WHERE id = ?').get(subscriptionId);
+  await publish('SubscriptionActivated', { userId: sub.user_id, planCode: sub.plan_code, subscriptionId }, 'api', { userId: sub.user_id, entityType: 'subscription', entityId: String(subscriptionId) });
   return true;
 }
 
-export function createPayment(userId, subscriptionId, amountEgp, provider = 'mock', providerRef = null) {
-  const r = db.prepare(
+export async function createPayment(userId, subscriptionId, amountEgp, provider = 'mock', providerRef = null) {
+  const r = await db.prepare(
     `INSERT INTO payments (user_id, subscription_id, amount_egp, provider, provider_ref, status) VALUES (?, ?, ?, ?, ?, 'pending')`
   ).run(userId, subscriptionId, amountEgp, provider, providerRef);
   return Number(r.lastInsertRowid);
 }
 
-export function confirmPayment(userId, subscriptionId, amountEgp, provider, providerRef) {
-  const r = db.prepare(
+export async function confirmPayment(userId, subscriptionId, amountEgp, provider, providerRef) {
+  const r = await db.prepare(
     `UPDATE payments SET status = 'paid', provider_ref = ? WHERE user_id = ? AND subscription_id = ? AND status = 'pending'`
   ).run(providerRef || null, userId, subscriptionId);
   if (!r.changes) return false;
-  activateSubscription(subscriptionId);
-  publish('PaymentPaid', { userId, subscriptionId, amountEgp, provider }, 'api', { userId, entityType: 'payment', entityId: String(subscriptionId) });
+  await activateSubscription(subscriptionId);
+  await publish('PaymentPaid', { userId, subscriptionId, amountEgp, provider }, 'api', { userId, entityType: 'payment', entityId: String(subscriptionId) });
   return true;
 }
 
-export function mySubscriptionStatus(userId) {
-  const sub = activeSubscription(userId);
-  const quota = quotaToday(userId);
+export async function mySubscriptionStatus(userId) {
+  const sub = await activeSubscription(userId);
+  const quota = await quotaToday(userId);
   return {
     isPremium: !!sub,
     plan: sub ? { code: sub.plan_code, name: sub.plan_name, endsAt: sub.ends_at } : null,
@@ -135,8 +135,8 @@ export function mySubscriptionStatus(userId) {
   };
 }
 
-export function isIncomingConversation(me, other) {
-  const row = db.prepare(
+export async function isIncomingConversation(me, other) {
+  const row = await db.prepare(
     `SELECT 1 FROM messages WHERE sender_id = ? AND receiver_id = ? LIMIT 1`
   ).get(other, me);
   return !!row;

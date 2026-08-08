@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { db } from '../db.js';
+import { ah } from '../async-handler.js';
 import { authRequired, emailVerifiedRequired } from '../middleware/auth.js';
 import { publicCard } from '../cards.js';
 import { FIELD_SPECS } from '../fields.js';
@@ -9,7 +10,7 @@ const router = Router();
 const SEARCHABLE = ['city', 'governorate', 'education', 'religiosity', 'lifestyle', 'profession', 'nationality'];
 
 // GET /api/search?q=&city=&education=&religiosity=&lifestyle=&profession=&nationality=&ageMin=&ageMax=&heightMin=&heightMax=&page=&limit=
-router.get('/search', authRequired, emailVerifiedRequired, (req, res) => {
+router.get('/search', authRequired, emailVerifiedRequired, ah(async (req, res) => {
   const me = req.userId;
   const q = String(req.query.q || '').trim();
   const city = String(req.query.city || '').trim();
@@ -43,7 +44,7 @@ router.get('/search', authRequired, emailVerifiedRequired, (req, res) => {
   addFilter('profession', profession);
   addFilter('nationality', nationality);
 
-  const rows = db.prepare(
+  const rows = await db.prepare(
     `SELECT u.id FROM users u
      WHERE u.id != ?
        AND u.status = 'active' AND u.deleted_at IS NULL
@@ -56,7 +57,8 @@ router.get('/search', authRequired, emailVerifiedRequired, (req, res) => {
       LIMIT ? OFFSET ?`
   ).all(...params, limit, (page - 1) * limit);
 
-  const items = rows.map((r) => publicCard(r.id)).filter(Boolean).filter((card) => {
+  const cards = await Promise.all(rows.map((r) => publicCard(r.id)));
+  const items = cards.filter(Boolean).filter((card) => {
     if (Number.isFinite(ageMin) || Number.isFinite(ageMax)) {
       const age = Number(card.age);
       if (!Number.isFinite(age)) return false;
@@ -74,7 +76,7 @@ router.get('/search', authRequired, emailVerifiedRequired, (req, res) => {
 
   const nextCursor = items.length === limit ? page + 1 : null;
   res.json({ items, page, nextCursor });
-});
+}));
 
 // GET /api/search/filters — خيارات قابلة للبحث فقط (Wasla_19/08)
 router.get('/search/filters', authRequired, (req, res) => {

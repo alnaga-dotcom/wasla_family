@@ -1,0 +1,44 @@
+services:
+  db:
+    image: mysql:8.0
+    container_name: wasla-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: wasla_dev
+      MYSQL_DATABASE: wasla
+      MYSQL_USER: wasla
+      MYSQL_PASSWORD: wasla_dev
+    ports:
+      - "3306:3306"
+    volumes:
+      - wasla_mysql:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uwasla", "-pwasla_dev"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    container_name: wasla-app
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: development
+      PORT: 4000
+      WASLA_DEV_OTP: "true"
+      WASLA_DB_HOST: db
+      WASLA_DB_PORT: "3306"
+      WASLA_DB_USER: wasla
+      WASLA_DB_PASSWORD: wasla_dev
+      WASLA_DB_NAME: wasla
+      WASLA_UPLOADS_DIR: /app/uploads
+      WASLA_PAYMENT_PROVIDER: mock
+    ports:
+      - "4000:4000"
+    volumes:
+      - ./uploads:/app/uploads
+
+volumes:
+  wasla_mysql:

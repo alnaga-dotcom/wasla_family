@@ -14,45 +14,43 @@ const DEFAULT_CONFIG = {
   max_history_penalty: 0.3,
 };
 
-function getConfig() {
-  const row = db.prepare("SELECT value FROM app_config WHERE key = 'recommendation_config'").get();
+async function getConfig() {
+  const row = await db.prepare("SELECT value FROM app_config WHERE config_key = 'recommendation_config'").get();
   if (row) {
     try { return { ...DEFAULT_CONFIG, ...JSON.parse(row.value) }; } catch { /* ignore */ }
   }
   return DEFAULT_CONFIG;
 }
 
-export function saveConfig(config) {
-  db.prepare(
-    `INSERT INTO app_config (key, value, updated_at) VALUES (?, ?, ?)
-     ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`
-  ).run('recommendation_config', JSON.stringify({ ...DEFAULT_CONFIG, ...config }), new Date().toISOString().slice(0, 19));
+export async function saveConfig(config) {
+  const value = JSON.stringify({ ...DEFAULT_CONFIG, ...config });
+  const updatedAt = new Date().toISOString().slice(0, 19);
+  await db.prepare(
+    `INSERT INTO app_config (config_key, value, updated_at) VALUES (?, ?, ?)
+     ON DUPLICATE KEY UPDATE value = VALUES(value), updated_at = VALUES(updated_at)`
+  ).run('recommendation_config', value, updatedAt);
 }
 
-function profileFields(userId) {
-  const rows = db.prepare('SELECT field_key, value FROM profile_fields WHERE user_id = ?').all(userId);
+async function profileFields(userId) {
+  const rows = await db.prepare('SELECT field_key, value FROM profile_fields WHERE user_id = ?').all(userId);
   const map = {};
   rows.forEach((r) => { map[r.field_key] = r.value; });
   return map;
 }
 
-function trustLevel(userId) {
-  return computeTrustLevel(userId);
-}
-
-function hasPhoto(userId) {
-  const row = db.prepare("SELECT 1 FROM profile_fields WHERE user_id = ? AND field_key = 'photo_done' AND value = '1'").get(userId);
+async function hasPhoto(userId) {
+  const row = await db.prepare("SELECT 1 FROM profile_fields WHERE user_id = ? AND field_key = 'photo_done' AND value = '1'").get(userId);
   return !!row;
 }
 
-function freshnessScore(userId) {
+async function freshnessScore(userId) {
   let score = 0;
   // recently created
-  const user = db.prepare('SELECT created_at FROM users WHERE id = ?').get(userId);
+  const user = await db.prepare('SELECT created_at FROM users WHERE id = ?').get(userId);
   const hoursSinceCreated = user ? (Date.now() - new Date(user.created_at + 'Z').getTime()) / 3600000 : Infinity;
   if (hoursSinceCreated < 24) score += 0.5;
   // recently added selfie
-  const selfie = db.prepare("SELECT updated_at FROM profile_fields WHERE user_id = ? AND field_key = 'selfie_done' AND value = '1'").get(userId);
+  const selfie = await db.prepare("SELECT updated_at FROM profile_fields WHERE user_id = ? AND field_key = 'selfie_done' AND value = '1'").get(userId);
   if (selfie) {
     const hours = (Date.now() - new Date(selfie.updated_at + 'Z').getTime()) / 3600000;
     if (hours < 24) score += 0.3;
@@ -60,8 +58,8 @@ function freshnessScore(userId) {
   return Math.min(1, score);
 }
 
-function historyPenalty(viewerId, targetId) {
-  const rows = db.prepare(
+async function historyPenalty(viewerId, targetId) {
+  const rows = await db.prepare(
     `SELECT opened, liked, ignored FROM recommendation_history WHERE viewer_id = ? AND target_id = ? ORDER BY shown_at DESC LIMIT 5`
   ).all(viewerId, targetId);
   if (!rows.length) return 0;
@@ -73,16 +71,16 @@ function historyPenalty(viewerId, targetId) {
   return Math.min(1, penalty);
 }
 
-function recordHistory(viewerId, targetId, source, position) {
-  db.prepare(
+async function recordHistory(viewerId, targetId, source, position) {
+  await db.prepare(
     `INSERT INTO recommendation_history (viewer_id, target_id, source, position) VALUES (?, ?, ?, ?)`
   ).run(viewerId, targetId, source, position);
 }
 
-export function getRecommendations(userId, limit = 20) {
-  const config = getConfig();
-  const fields = profileFields(userId);
-  const candidates = db.prepare(
+export async function getRecommendations(userId, limit = 20) {
+  const config = await getConfig();
+  const fields = await profileFields(userId);
+  const candidates = await db.prepare(
     `SELECT u.id FROM users u
      WHERE u.id != ?
        AND u.status = 'active' AND u.deleted_at IS NULL
@@ -95,24 +93,25 @@ export function getRecommendations(userId, limit = 20) {
   ).all(userId, userId, userId, userId, limit * 4);
 
   const blocked = new Set();
-  db.prepare(
+  (await db.prepare(
     `SELECT blocked_id FROM blocked_members WHERE user_id = ?
      UNION
      SELECT user_id FROM blocked_members WHERE blocked_id = ?`
-  ).all(userId, userId).forEach((r) => blocked.add(r.blocked_id));
+  ).all(userId, userId)).forEach((r) => blocked.add(r.blocked_id));
 
   const filtered = candidates.filter((c) => !blocked.has(c.id));
-  const threshold = getThreshold();
-  const scored = filtered.map((c, idx) => {
+  const threshold = await getThreshold();
+  const scored = [];
+  for (const c of filtered) {
     const targetId = c.id;
-    const match = getMatchScore(userId, targetId);
-    const targetTrust = trustLevel(targetId);
-    const photo = hasPhoto(targetId) ? 1 : 0;
-    const fresh = freshnessScore(targetId);
-    const histPenalty = historyPenalty(userId, targetId);
+    const match = await getMatchScore(userId, targetId);
+    const targetTrust = await computeTrustLevel(targetId);
+    const photo = (await hasPhoto(targetId)) ? 1 : 0;
+    const fresh = await freshnessScore(targetId);
+    const histPenalty = await historyPenalty(userId, targetId);
 
-    if (targetTrust < config.min_trust_level) return null;
-    if (match.score < threshold) return null;
+    if (targetTrust < config.min_trust_level) continue;
+    if (match.score < threshold) continue;
 
     const compatibilityNorm = match.score / 100;
     const trustNorm = Math.min(1, targetTrust / 3);
@@ -133,7 +132,7 @@ export function getRecommendations(userId, limit = 20) {
     if (targetTrust >= 2) reasons.push('موثّق');
     if (photo) reasons.push('لديه صورة');
 
-    return {
+    scored.push({
       userId: targetId,
       score: Math.round(finalScore * 100),
       matchScore: match.score,
@@ -141,29 +140,38 @@ export function getRecommendations(userId, limit = 20) {
       trustLevel: targetTrust,
       reasons,
       source: 'recommendation',
-    };
-  }).filter(Boolean);
+    });
+  }
 
   scored.sort((a, b) => b.score - a.score);
   const result = scored.slice(0, limit);
-  result.forEach((r, i) => recordHistory(userId, r.userId, r.source, i + 1));
+  for (const r of result) await recordHistory(userId, r.userId, r.source, result.indexOf(r) + 1);
 
-  publish('RecommendationGenerated', { count: result.length, viewerId: userId }, 'recommendation', { userId, entityType: 'user', entityId: String(userId) });
+  await publish('RecommendationGenerated', { count: result.length, viewerId: userId }, 'recommendation', { userId, entityType: 'user', entityId: String(userId) });
   return result;
 }
 
-export function markOpened(viewerId, targetId) {
-  db.prepare('UPDATE recommendation_history SET opened = 1 WHERE viewer_id = ? AND target_id = ? ORDER BY shown_at DESC LIMIT 1').run(viewerId, targetId);
+export async function markOpened(viewerId, targetId) {
+  await db.prepare(
+    `UPDATE recommendation_history SET opened = 1
+     WHERE id = (SELECT id FROM (SELECT id FROM recommendation_history WHERE viewer_id = ? AND target_id = ? ORDER BY shown_at DESC LIMIT 1) t)`
+  ).run(viewerId, targetId);
 }
 
-export function markLiked(viewerId, targetId) {
-  db.prepare('UPDATE recommendation_history SET liked = 1 WHERE viewer_id = ? AND target_id = ? ORDER BY shown_at DESC LIMIT 1').run(viewerId, targetId);
+export async function markLiked(viewerId, targetId) {
+  await db.prepare(
+    `UPDATE recommendation_history SET liked = 1
+     WHERE id = (SELECT id FROM (SELECT id FROM recommendation_history WHERE viewer_id = ? AND target_id = ? ORDER BY shown_at DESC LIMIT 1) t)`
+  ).run(viewerId, targetId);
 }
 
-export function markIgnored(viewerId, targetId) {
-  db.prepare('UPDATE recommendation_history SET ignored = 1 WHERE viewer_id = ? AND target_id = ? ORDER BY shown_at DESC LIMIT 1').run(viewerId, targetId);
+export async function markIgnored(viewerId, targetId) {
+  await db.prepare(
+    `UPDATE recommendation_history SET ignored = 1
+     WHERE id = (SELECT id FROM (SELECT id FROM recommendation_history WHERE viewer_id = ? AND target_id = ? ORDER BY shown_at DESC LIMIT 1) t)`
+  ).run(viewerId, targetId);
 }
 
-export function listConfig() {
+export async function listConfig() {
   return getConfig();
 }

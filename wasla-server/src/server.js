@@ -25,7 +25,7 @@ import adminRoutes from './routes/admin.js';
 import publicRoutes from './routes/public.js';
 import whatsappRoutes from './routes/whatsapp.js';
 import { contentPublicRouter, contentAdminRouter } from './routes/content.js';
-import { db } from './db.js';
+import { db, initDb } from './db.js';
 import { purgeExpired } from './account.js';
 import { initPush } from './push.js';
 import { initRealtime } from './realtime.js';
@@ -67,10 +67,10 @@ app.use((req, res, next) => {
   next();
 });
 
-app.get('/api/health', (req, res) => {
+app.get('/api/health', async (req, res) => {
   let dbOk = false;
   try {
-    db.prepare('SELECT 1').get();
+    await db.prepare('SELECT 1').get();
     dbOk = true;
   } catch (e) {
     logger.error('health db check failed', e);
@@ -123,12 +123,18 @@ app.use((err, req, res, next) => {
   return apiError(res, 500, 'INTERNAL', 'خطأ داخلي');
 });
 
-const server = app.listen(config.port, () => {
-  const purged = purgeExpired();
-  logger.info(`Wasla server listening on http://127.0.0.1:${config.port}`);
-  if (purged > 0) logger.info(`تطهير الحسابات المنتهية: ${purged}`);
-  if (config.devOtpEcho) {
-    logger.warn('devOtpEcho ON — رمز OTP يظهر في الاستجابة للتجربة المحلية فقط');
+const server = app.listen(config.port, async () => {
+  try {
+    await initDb();
+    const purged = await purgeExpired();
+    logger.info(`Wasla server listening on http://127.0.0.1:${config.port}`);
+    if (purged > 0) logger.info(`تطهير الحسابات المنتهية: ${purged}`);
+    if (config.devOtpEcho) {
+      logger.warn('devOtpEcho ON — رمز OTP يظهر في الاستجابة للتجربة المحلية فقط');
+    }
+  } catch (err) {
+    logger.error('DB init failed — shutting down', err);
+    process.exit(1);
   }
 });
 
@@ -136,7 +142,8 @@ initRealtime(server);
 
 function shutdown(signal) {
   logger.info(`${signal} received, shutting down gracefully`);
-  server.close((err) => {
+  server.close(async (err) => {
+    try { await db.close(); } catch (e) {}
     if (err) logger.error('error during shutdown', err);
     process.exit(err ? 1 : 0);
   });

@@ -131,11 +131,11 @@ export function checkMessage(userId, text, messageId) {
   return checkText(userId, 'message', text, { item_id: String(messageId || ''), item_type: 'message' });
 }
 
-export function checkText(userId, itemType, text, meta = {}) {
+export async function checkText(userId, itemType, text, meta = {}) {
   const result = check(text);
   const normalized = normalize(text);
   if (result.status !== 'ACCEPT' || result.review) {
-    const r = db.prepare(
+    const r = await db.prepare(
       `INSERT INTO moderation_items (user_id, item_type, item_id, field_key, original_text, normalized_text, risk_score, status, violations)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
     ).run(
@@ -154,22 +154,22 @@ export function checkText(userId, itemType, text, meta = {}) {
   return result;
 }
 
-export function getQueue(status = 'pending', limit = 200) {
+export async function getQueue(status = 'pending', limit = 200) {
   return db.prepare(
     `SELECT * FROM moderation_items WHERE status = ? ORDER BY risk_score DESC, id DESC LIMIT ?`
   ).all(status, limit);
 }
 
-export function resolveItem(itemId, action, actorId, actorRole, reason) {
+export async function resolveItem(itemId, action, actorId, actorRole, reason) {
   const status = action === 'approve' ? 'approved' : action === 'reject' ? 'rejected' : 'overturned';
-  db.prepare('UPDATE moderation_items SET status = ? WHERE id = ?').run(status, itemId);
-  db.prepare(
+  await db.prepare('UPDATE moderation_items SET status = ? WHERE id = ?').run(status, itemId);
+  await db.prepare(
     `INSERT INTO moderation_decisions (item_id, actor_id, actor_role, action, reason) VALUES (?, ?, ?, ?, ?)`
   ).run(itemId, actorId || null, actorRole || null, action, reason || null);
   return { itemId, status };
 }
 
-export function itemById(itemId) {
+export async function itemById(itemId) {
   return db.prepare('SELECT * FROM moderation_items WHERE id = ?').get(itemId);
 }
 

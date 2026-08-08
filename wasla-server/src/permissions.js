@@ -5,19 +5,19 @@ export const roles = [
   'rule_admin', 'subscription_admin', 'admin', 'super_admin'
 ];
 
-export function listPermissions(role) {
+export async function listPermissions(role) {
   return db.prepare(`SELECT resource, action FROM role_permissions WHERE role = ?`).all(role);
 }
 
-export function hasPermission(role, resource, action) {
-  const row = db.prepare(
+export async function hasPermission(role, resource, action) {
+  const row = await db.prepare(
     `SELECT 1 FROM role_permissions WHERE role = ? AND resource = ? AND action = ?`
   ).get(role, resource, action);
   return !!row;
 }
 
-export function requirePermission(role, resource, action) {
-  if (!hasPermission(role, resource, action)) {
+export async function requirePermission(role, resource, action) {
+  if (!(await hasPermission(role, resource, action))) {
     const error = new Error(`Role '${role}' lacks permission ${resource}.${action}`);
     error.code = 'ADMIN_REQUIRED';
     throw error;
@@ -45,6 +45,6 @@ export function listAllRoles() {
   return roles;
 }
 
-export function listAllPermissions() {
+export async function listAllPermissions() {
   return db.prepare(`SELECT role, resource, action FROM role_permissions ORDER BY role, resource, action`).all();
 }

@@ -1,8 +1,9 @@
 import { db, nowIso } from '../db.js';
 import { apiError } from '../validate.js';
 import { isDeleted, isInGrace } from '../account.js';
+import { ah } from '../async-handler.js';
 
-function resolveSession(req) {
+async function resolveSession(req) {
   const header = req.headers.authorization || '';
   const token = header.startsWith('Bearer ') ? header.slice(7) : null;
   if (!token) return null;
@@ -18,18 +19,18 @@ function badSession(res, row) {
   return null;
 }
 
-export function authRequired(req, res, next) {
-  const row = resolveSession(req);
+export const authRequired = ah(async (req, res, next) => {
+  const row = await resolveSession(req);
   const err = badSession(res, row);
   if (err) return err;
   if (isDeleted(row)) return apiError(res, 403, 'ACCOUNT_DELETED', 'هذا الحساب قيد الحذف — يمكنك استرجاعه خلال مهلة الحذف', 'account');
   req.userId = row.user_id;
   next();
-}
+});
 
 // مسارات خاصة بالحساب (استرجاع/تصدير): تسمح للمحذوف خلال المهلة
-export function authGrace(req, res, next) {
-  const row = resolveSession(req);
+export const authGrace = ah(async (req, res, next) => {
+  const row = await resolveSession(req);
   const err = badSession(res, row);
   if (err) return err;
   if (isDeleted(row) && !isInGrace(row.deleted_at)) {
@@ -37,13 +38,13 @@ export function authGrace(req, res, next) {
   }
   req.userId = row.user_id;
   next();
-}
+});
 
 // Phase 1 gate: search + chat require verified email (Wasla progressive verification)
-export function emailVerifiedRequired(req, res, next) {
-  const u = db.prepare('SELECT email, email_verified_at FROM users WHERE id = ?').get(req.userId);
+export const emailVerifiedRequired = ah(async (req, res, next) => {
+  const u = await db.prepare('SELECT email, email_verified_at FROM users WHERE id = ?').get(req.userId);
   if (!u || !u.email_verified_at) {
     return apiError(res, 403, 'EMAIL_VERIFICATION_REQUIRED', 'فعّل بريدك الإلكتروني من صفحة الملف للوصول إلى البحث والمراسلة', 'email');
   }
   next();
-}
+});

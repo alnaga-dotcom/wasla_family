@@ -35,8 +35,8 @@ function evaluateConditions(rule, context) {
   });
 }
 
-export function evaluateRules(eventType, context) {
-  const rules = db.prepare("SELECT * FROM rules WHERE event_type = ? AND status = 'active' ORDER BY priority DESC, id ASC").all(eventType);
+export async function evaluateRules(eventType, context) {
+  const rules = await db.prepare("SELECT * FROM rules WHERE event_type = ? AND status = 'active' ORDER BY priority DESC, id ASC").all(eventType);
   const results = [];
   for (const rule of rules) {
     let conditions = [];
@@ -50,12 +50,12 @@ export function evaluateRules(eventType, context) {
     if (matched) {
       for (const action of actions) {
         if (action.type === 'emit_event') {
-          publish(action.eventType, action.payload || {}, 'rule', { userId: context.userId, entityType: context.entityType, entityId: context.entityId });
+          await publish(action.eventType, action.payload || {}, 'rule', { userId: context.userId, entityType: context.entityType, entityId: context.entityId });
         }
       }
       result.actions = actions;
     }
-    db.prepare(
+    await db.prepare(
       `INSERT INTO rule_executions (rule_id, event_id, context, result) VALUES (?, ?, ?, ?)`
     ).run(rule.id, context.eventId || null, JSON.stringify(context), JSON.stringify(result));
     results.push(result);
@@ -63,15 +63,15 @@ export function evaluateRules(eventType, context) {
   return results;
 }
 
-export function createRule({ name, description, eventType, conditions, actions, priority = 0, status = 'active', userMessage, sensitive = false }) {
-  const r = db.prepare(
+export async function createRule({ name, description, eventType, conditions, actions, priority = 0, status = 'active', userMessage, sensitive = false }) {
+  const r = await db.prepare(
     `INSERT INTO rules (name, description, event_type, conditions, actions, priority, status, user_message, sensitive)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(name, description || null, eventType, JSON.stringify(conditions), JSON.stringify(actions), priority, status, userMessage || null, sensitive ? 1 : 0);
   return Number(r.lastInsertRowid);
 }
 
-export function updateRule(id, updates) {
+export async function updateRule(id, updates) {
   const sets = [];
   const params = [];
   for (const [k, v] of Object.entries(updates)) {
@@ -88,10 +88,10 @@ export function updateRule(id, updates) {
   }
   if (!sets.length) return;
   params.push(id);
-  db.prepare(`UPDATE rules SET ${sets.join(', ')} WHERE id = ?`).run(...params);
+  await db.prepare(`UPDATE rules SET ${sets.join(', ')} WHERE id = ?`).run(...params);
 }
 
-export function listRules({ eventType, status } = {}) {
+export async function listRules({ eventType, status } = {}) {
   let sql = 'SELECT * FROM rules WHERE 1=1';
   const params = [];
   if (eventType) { sql += ' AND event_type = ?'; params.push(eventType); }
@@ -100,12 +100,12 @@ export function listRules({ eventType, status } = {}) {
   return db.prepare(sql).all(...params);
 }
 
-export function getRule(id) {
+export async function getRule(id) {
   return db.prepare('SELECT * FROM rules WHERE id = ?').get(id);
 }
 
-export function testRule(id, context) {
-  const rule = getRule(id);
+export async function testRule(id, context) {
+  const rule = await getRule(id);
   if (!rule) return null;
   const conditions = JSON.parse(rule.conditions);
   const matched = evaluateConditions({ conditions }, context);

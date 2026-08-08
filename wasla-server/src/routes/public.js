@@ -1,24 +1,25 @@
 import { Router } from 'express';
 import { db } from '../db.js';
+import { ah } from '../async-handler.js';
 
 const router = Router();
 
 // GET /api/public/stats — real numbers for landing page (Wasla_24 §7)
 // Excludes demo accounts, suspended users, and accounts pending deletion.
-router.get('/stats', (req, res) => {
-  const activeMembers = db.prepare(
+router.get('/stats', ah(async (req, res) => {
+  const activeMembers = (await db.prepare(
     `SELECT COUNT(*) AS c FROM users
      WHERE status = 'active' AND deleted_at IS NULL
        AND role = 'user'`
-  ).get().c;
+  ).get()).c;
 
-  const verifiedMembers = db.prepare(
+  const verifiedMembers = (await db.prepare(
     `SELECT COUNT(*) AS c FROM users
      WHERE status = 'active' AND deleted_at IS NULL
        AND verified_at IS NOT NULL`
-  ).get().c;
+  ).get()).c;
 
-  const matches = db.prepare(
+  const matches = (await db.prepare(
     `SELECT COUNT(*) AS c FROM match_actions a
      JOIN users u1 ON u1.id = a.actor_id
      JOIN users u2 ON u2.id = a.target_id
@@ -29,22 +30,22 @@ router.get('/stats', (req, res) => {
        )
        AND u1.status = 'active' AND u1.deleted_at IS NULL
        AND u2.status = 'active' AND u2.deleted_at IS NULL`
-  ).get().c;
+  ).get()).c;
 
-  const messages = db.prepare(
+  const messages = (await db.prepare(
     `SELECT COUNT(*) AS c FROM messages m
      JOIN users sender ON sender.id = m.sender_id
      JOIN users receiver ON receiver.id = m.receiver_id
      WHERE sender.status = 'active' AND sender.deleted_at IS NULL
        AND receiver.status = 'active' AND receiver.deleted_at IS NULL`
-  ).get().c;
+  ).get()).c;
 
   res.json({ activeMembers, verifiedMembers, matches, messages });
-});
+}));
 
 // GET /api/public/plans — public pricing for landing page
-router.get('/plans', (req, res) => {
-  const rows = db.prepare('SELECT code, name, duration_months, price_egp, regular_price_egp, features, status FROM plans WHERE status = ? ORDER BY price_egp')
+router.get('/plans', ah(async (req, res) => {
+  const rows = await db.prepare('SELECT code, name, duration_months, price_egp, regular_price_egp, features, status FROM plans WHERE status = ? ORDER BY price_egp')
     .all('active');
   res.json({
     plans: rows.map((p) => ({
@@ -52,6 +53,6 @@ router.get('/plans', (req, res) => {
       features: JSON.parse(p.features || '[]'),
     })),
   });
-});
+}));
 
 export default router;

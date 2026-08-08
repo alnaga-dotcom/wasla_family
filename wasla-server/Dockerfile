@@ -7,8 +7,8 @@ RUN npm ci --omit=dev
 
 COPY src ./src
 
-# data/ is intentionally NOT copied: it is created at runtime (db.js) and
-# persists via the Render disk mounted at /app/data.
+# Uploads/ dir is created at runtime; persisted via the mounted volume
+# (e.g. Render disk at /app/data). Business data lives in MySQL (WASLA_DB_*).
 
 RUN mkdir -p /app/logs /app/data/uploads
 

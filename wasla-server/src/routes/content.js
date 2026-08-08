@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { db, nowIso } from '../db.js';
+import { ah } from '../async-handler.js';
 import { apiError } from '../validate.js';
 import { adminRequired, permissionRequired } from '../middleware/admin.js';
 import { publish } from '../events.js';
@@ -33,28 +34,28 @@ function publicPost(row) {
 // ---- Public: blog posts ----
 
 // GET /api/public/posts — published posts list
-publicRouter.get('/posts', (req, res) => {
-  const rows = db.prepare(
+publicRouter.get('/posts', ah(async (req, res) => {
+  const rows = await db.prepare(
     `SELECT id, slug, title, category, excerpt, body, cover_url, author, published_at
      FROM posts WHERE status = 'published' ORDER BY published_at DESC, id DESC`
   ).all();
   res.json({ posts: rows.map(publicPost) });
-});
+}));
 
 // GET /api/public/posts/:slug — single published post
-publicRouter.get('/posts/:slug', (req, res) => {
-  const row = db.prepare(
+publicRouter.get('/posts/:slug', ah(async (req, res) => {
+  const row = await db.prepare(
     `SELECT id, slug, title, category, excerpt, body, cover_url, author, published_at
      FROM posts WHERE slug = ? AND status = 'published'`
   ).get(req.params.slug);
   if (!row) return apiError(res, 404, 'NOT_FOUND', 'المقال غير موجود');
   res.json({ post: publicPost(row) });
-});
+}));
 
 // ---- Public: feedback (suggestions & complaints) ----
 
 // POST /api/public/feedback { name?, contact?, category, message }
-publicRouter.post('/feedback', (req, res) => {
+publicRouter.post('/feedback', ah(async (req, res) => {
   const { name, contact, category, message } = req.body || {};
   const cat = String(category || 'other').trim();
   if (!FEEDBACK_CATEGORIES.includes(cat)) {
@@ -67,31 +68,31 @@ publicRouter.post('/feedback', (req, res) => {
   const normName = String(name || '').trim().slice(0, 80) || null;
   const normContact = String(contact || '').trim().slice(0, 120) || null;
 
-  const r = db.prepare(
+  const r = await db.prepare(
     'INSERT INTO feedback (name, contact, category, message, user_id) VALUES (?, ?, ?, ?, ?)'
   ).run(normName, normContact, cat, msg, req.userId || null);
 
-  publish('FeedbackReceived', { name: normName, contact: normContact, category: cat }, 'api', {
+  await publish('FeedbackReceived', { name: normName, contact: normContact, category: cat }, 'api', {
     entityType: 'feedback',
     entityId: String(r.lastInsertRowid),
   });
 
   res.status(201).json({ ok: true, id: Number(r.lastInsertRowid) });
-});
+}));
 
 // ---- Admin: blog posts CRUD ----
 
 // GET /admin/posts?status=all|published|draft
-adminRouter.get('/posts', permissionRequired('content', 'review'), (req, res) => {
+adminRouter.get('/posts', permissionRequired('content', 'review'), ah(async (req, res) => {
   const { status } = req.query || {};
   const rows = status && status !== 'all'
-    ? db.prepare(`SELECT * FROM posts WHERE status = ? ORDER BY id DESC`).all(status)
-    : db.prepare(`SELECT * FROM posts ORDER BY id DESC`).all();
+    ? await db.prepare(`SELECT * FROM posts WHERE status = ? ORDER BY id DESC`).all(status)
+    : await db.prepare(`SELECT * FROM posts ORDER BY id DESC`).all();
   res.json({ posts: rows });
-});
+}));
 
 // POST /admin/posts { slug?, title, category, excerpt?, body, cover_url?, author?, status?, published_at? }
-adminRouter.post('/posts', permissionRequired('content', 'review'), (req, res) => {
+adminRouter.post('/posts', permissionRequired('content', 'review'), ah(async (req, res) => {
   const b = req.body || {};
   const title = String(b.title || '').trim();
   if (title.length < 3 || title.length > 160) {
@@ -110,12 +111,12 @@ adminRouter.post('/posts', permissionRequired('content', 'review'), (req, res) =
   const publishedAt = b.published_at || (status === 'published' ? nowIso() : null);
 
   try {
-    const r = db.prepare(
+    const r = await db.prepare(
       `INSERT INTO posts (slug, title, category, excerpt, body, cover_url, author, status, published_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
     ).run(slug, title, cat, String(b.excerpt || '').trim().slice(0, 300) || null, body,
       String(b.cover_url || '').trim() || null, String(b.author || '').trim() || null, status, publishedAt);
-    publish('PostPublished', { id: Number(r.lastInsertRowid), slug, title, category: cat }, 'api', {
+    await publish('PostPublished', { id: Number(r.lastInsertRowid), slug, title, category: cat }, 'api', {
       entityType: 'post',
       entityId: String(r.lastInsertRowid),
     });
@@ -126,12 +127,12 @@ adminRouter.post('/posts', permissionRequired('content', 'review'), (req, res) =
     }
     throw err;
   }
-});
+}));
 
 // PUT /admin/posts/:id
-adminRouter.put('/posts/:id', permissionRequired('content', 'review'), (req, res) => {
+adminRouter.put('/posts/:id', permissionRequired('content', 'review'), ah(async (req, res) => {
   const id = Number(req.params.id);
-  const existing = db.prepare('SELECT * FROM posts WHERE id = ?').get(id);
+  const existing = await db.prepare('SELECT * FROM posts WHERE id = ?').get(id);
   if (!existing) return apiError(res, 404, 'NOT_FOUND', 'المقال غير موجود');
 
   const b = req.body || {};
@@ -152,7 +153,7 @@ adminRouter.put('/posts/:id', permissionRequired('content', 'review'), (req, res
   const publishedAt = b.published_at || (existing.published_at || (status === 'published' ? nowIso() : null));
 
   try {
-    db.prepare(
+    await db.prepare(
       `UPDATE posts SET slug = ?, title = ?, category = ?, excerpt = ?, body = ?, cover_url = ?, author = ?, status = ?, published_at = ?, updated_at = ?
        WHERE id = ?`
     ).run(slug, title, cat, b.excerpt !== undefined ? String(b.excerpt).trim().slice(0, 300) : existing.excerpt,
@@ -165,40 +166,40 @@ adminRouter.put('/posts/:id', permissionRequired('content', 'review'), (req, res
     }
     throw err;
   }
-});
+}));
 
 // DELETE /admin/posts/:id
-adminRouter.delete('/posts/:id', permissionRequired('content', 'review'), (req, res) => {
+adminRouter.delete('/posts/:id', permissionRequired('content', 'review'), ah(async (req, res) => {
   const id = Number(req.params.id);
-  const existing = db.prepare('SELECT * FROM posts WHERE id = ?').get(id);
+  const existing = await db.prepare('SELECT * FROM posts WHERE id = ?').get(id);
   if (!existing) return apiError(res, 404, 'NOT_FOUND', 'المقال غير موجود');
-  db.prepare('DELETE FROM posts WHERE id = ?').run(id);
+  await db.prepare('DELETE FROM posts WHERE id = ?').run(id);
   res.json({ ok: true });
-});
+}));
 
 // ---- Admin: feedback queue ----
 
 // GET /admin/feedback?status=new|open|closed|all
-adminRouter.get('/feedback', permissionRequired('queues', 'view'), (req, res) => {
+adminRouter.get('/feedback', permissionRequired('queues', 'view'), ah(async (req, res) => {
   const { status } = req.query || {};
   const rows = status && status !== 'all'
-    ? db.prepare(`SELECT * FROM feedback WHERE status = ? ORDER BY created_at DESC LIMIT 300`).all(status)
-    : db.prepare(`SELECT * FROM feedback ORDER BY created_at DESC LIMIT 300`).all();
+    ? await db.prepare(`SELECT * FROM feedback WHERE status = ? ORDER BY created_at DESC LIMIT 300`).all(status)
+    : await db.prepare(`SELECT * FROM feedback ORDER BY created_at DESC LIMIT 300`).all();
   res.json({ feedback: rows });
-});
+}));
 
 // POST /admin/feedback/:id/status { status }
-adminRouter.post('/feedback/:id/status', permissionRequired('queues', 'view'), (req, res) => {
+adminRouter.post('/feedback/:id/status', permissionRequired('queues', 'view'), ah(async (req, res) => {
   const id = Number(req.params.id);
   const status = String((req.body || {}).status || '').trim();
   if (!['new', 'open', 'closed'].includes(status)) {
     return apiError(res, 422, 'INVALID_STATUS', 'حالة غير صالحة', 'status');
   }
-  const existing = db.prepare('SELECT * FROM feedback WHERE id = ?').get(id);
+  const existing = await db.prepare('SELECT * FROM feedback WHERE id = ?').get(id);
   if (!existing) return apiError(res, 404, 'NOT_FOUND', 'الرسالة غير موجودة');
-  db.prepare('UPDATE feedback SET status = ? WHERE id = ?').run(status, id);
+  await db.prepare('UPDATE feedback SET status = ? WHERE id = ?').run(status, id);
   res.json({ ok: true });
-});
+}));
 
 export const contentPublicRouter = publicRouter;
 export const contentAdminRouter = adminRouter;

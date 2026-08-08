@@ -7,24 +7,25 @@ import { checkField } from '../moderation.js';
 import { publish } from '../events.js';
 import { getUserActivePhoto, getUserPrivatePhotos, photoUrl } from '../uploads.js';
 import { updateUserTrustLevel } from '../trust.js';
+import { ah } from '../async-handler.js';
 
 const router = Router();
 router.use(authRequired);
 
-function fieldsFor(userId) {
-  const rows = db.prepare('SELECT field_key, value FROM profile_fields WHERE user_id = ?').all(userId);
+async function fieldsFor(userId) {
+  const rows = await db.prepare('SELECT field_key, value FROM profile_fields WHERE user_id = ?').all(userId);
   const map = {};
   rows.forEach((r) => { map[r.field_key] = r.value; });
   return map;
 }
 
 // GET /api/profile/me  — own profile, includes completion and photos (Wasla_05 §9e)
-router.get('/me', (req, res) => {
-  const fields = fieldsFor(req.userId);
-  const u = db.prepare('SELECT id, name, phone, email, email_verified_at, gender, status, role, trust_level, created_at FROM users WHERE id = ?').get(req.userId);
-  const profilePhoto = getUserActivePhoto(req.userId, 'profile');
-  const selfiePhoto = getUserActivePhoto(req.userId, 'selfie');
-  const privatePhotos = getUserPrivatePhotos(req.userId);
+router.get('/me', ah(async (req, res) => {
+  const fields = await fieldsFor(req.userId);
+  const u = await db.prepare('SELECT id, name, phone, email, email_verified_at, gender, status, role, trust_level, created_at FROM users WHERE id = ?').get(req.userId);
+  const profilePhoto = await getUserActivePhoto(req.userId, 'profile');
+  const selfiePhoto = await getUserActivePhoto(req.userId, 'selfie');
+  const privatePhotos = await getUserPrivatePhotos(req.userId);
   res.json({
     user: {
       id: u.id,
@@ -46,16 +47,16 @@ router.get('/me', (req, res) => {
       private: privatePhotos.map((p) => ({ id: p.id, url: photoUrl(p) })),
     },
   });
-});
+}));
 
 // GET /api/profile/completion
-router.get('/completion', (req, res) => {
-  const fields = fieldsFor(req.userId);
+router.get('/completion', ah(async (req, res) => {
+  const fields = await fieldsFor(req.userId);
   res.json({ completion: completionFor(fields) });
-});
+}));
 
 // PATCH /api/profile/me  { field_key, value } | { fields: [{field_key, value}] }
-router.patch('/me', (req, res) => {
+router.patch('/me', ah(async (req, res) => {
   const body = req.body || {};
   const updates = Array.isArray(body.fields) ? body.fields : body.field_key ? [{ field_key: body.field_key, value: body.value }] : [];
   if (updates.length === 0) return apiError(res, 422, 'MISSING_FIELDS', 'لا توجد حقول للتحديث');
@@ -67,28 +68,28 @@ router.patch('/me', (req, res) => {
     if (!check.ok) return apiError(res, 422, 'INVALID_VALUE', 'قيمة غير صالحة لهذا الحقل', 'field_key');
     // Content moderation for text fields (Wasla_15)
     if (spec.type === 'text') {
-      const mod = checkField(req.userId, field_key, check.value);
+      const mod = await checkField(req.userId, field_key, check.value);
       if (!mod.allowed) {
         const bad = (mod.violations || []).some((v) => v.type === 'profanity');
         return apiError(res, 422, 'MODERATION_REJECT', bad ? 'النص يحتوي على كلمات غير لائقة. الرجاء تعديله.' : 'لحماية خصوصية الجميع، لا يُسمح بإضافة وسائل تواصل أو روابط أو بيانات اتصال. الرجاء تعديل النص.', 'value', { violations: mod.violations });
       }
     }
     const sensitive = spec.sensitive ? 1 : 0;
-    db.prepare(
+    await db.prepare(
       `INSERT INTO profile_fields (user_id, field_key, value, domain, sensitive, updated_at)
        VALUES (?, ?, ?, ?, ?, ?)
-       ON CONFLICT(user_id, field_key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`
+       ON DUPLICATE KEY UPDATE value = VALUES(value), updated_at = VALUES(updated_at)`
     ).run(req.userId, field_key, check.value, spec.domain, sensitive, nowIso());
-    publish('ProfileUpdated', { field_key, value: check.value }, 'api', { userId: req.userId, entityType: 'profile', entityId: String(req.userId) });
+    await publish('ProfileUpdated', { field_key, value: check.value }, 'api', { userId: req.userId, entityType: 'profile', entityId: String(req.userId) });
   }
 
-  const fields = fieldsFor(req.userId);
+  const fields = await fieldsFor(req.userId);
   const completion = completionFor(fields);
-  const trustLevel = updateUserTrustLevel(req.userId);
+  const trustLevel = await updateUserTrustLevel(req.userId);
   if (completion.pct >= 100) {
-    publish('ProfileCompleted', { completion }, 'api', { userId: req.userId, entityType: 'profile', entityId: String(req.userId) });
+    await publish('ProfileCompleted', { completion }, 'api', { userId: req.userId, entityType: 'profile', entityId: String(req.userId) });
   }
   res.json({ fields, completion, trustLevel });
-});
+}));
 
 export default router;

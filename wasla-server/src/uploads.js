@@ -21,7 +21,7 @@ export function getMaxSize() {
   return MAX_SIZE;
 }
 
-export function storePhoto(userId, kind, file) {
+export async function storePhoto(userId, kind, file) {
   if (!file || !file.buffer) throw new Error('missing file');
   const ext = extname(file.originalname || '').toLowerCase();
   const mime = file.mimetype;
@@ -42,12 +42,12 @@ export function storePhoto(userId, kind, file) {
 
   if (kind === 'private') {
     // Private gallery (match-only): max 6 photos, always stored as-is (no public moderation queue).
-    const count = db.prepare("SELECT COUNT(*) AS c FROM user_photos WHERE user_id = ? AND kind = 'private' AND status = 'active'").get(userId).c;
+    const count = (await db.prepare("SELECT COUNT(*) AS c FROM user_photos WHERE user_id = ? AND kind = 'private' AND status = 'active'").get(userId)).c;
     if (count >= 6) {
       try { unlinkSync(path); } catch {}
       return { ok: false, code: 'PRIVATE_LIMIT_REACHED', maxPrivate: 6, detail: 'الحد الأقصى ٦ صور خاصة' };
     }
-    const r = db.prepare(
+    const r = await db.prepare(
       `INSERT INTO user_photos (user_id, kind, filename, original_name, mime_type, size_bytes)
        VALUES (?, ?, ?, ?, ?, ?)`
     ).run(userId, kind, name, file.originalname || name, mime, file.size);
@@ -57,8 +57,8 @@ export function storePhoto(userId, kind, file) {
   if (kind === 'profile') {
     // Avatar moderation: new upload goes to review; only ONE pending at a time,
     // and the current approved avatar stays visible until the new one is approved.
-    db.prepare("UPDATE user_photos SET status = 'deleted' WHERE user_id = ? AND kind = 'profile' AND review_status = 'pending'").run(userId);
-    const r = db.prepare(
+    await db.prepare("UPDATE user_photos SET status = 'deleted' WHERE user_id = ? AND kind = 'profile' AND review_status = 'pending'").run(userId);
+    const r = await db.prepare(
       `INSERT INTO user_photos (user_id, kind, filename, original_name, mime_type, size_bytes, review_status)
        VALUES (?, ?, ?, ?, ?, ?, 'pending')`
     ).run(userId, kind, name, file.originalname || name, mime, file.size);
@@ -66,48 +66,48 @@ export function storePhoto(userId, kind, file) {
   }
 
   // Selfie: unchanged — private, no moderation queue.
-  db.prepare("UPDATE user_photos SET status = 'deleted' WHERE user_id = ? AND kind = ? AND status = 'active'").run(userId, kind);
-  const r = db.prepare(
+  await db.prepare("UPDATE user_photos SET status = 'deleted' WHERE user_id = ? AND kind = ? AND status = 'active'").run(userId, kind);
+  const r = await db.prepare(
     `INSERT INTO user_photos (user_id, kind, filename, original_name, mime_type, size_bytes)
      VALUES (?, ?, ?, ?, ?, ?)`
   ).run(userId, kind, name, file.originalname || name, mime, file.size);
   return { ok: true, id: Number(r.lastInsertRowid), filename: name, path, pending: false };
 }
 
-export function getPhotoById(id) {
+export async function getPhotoById(id) {
   return db.prepare('SELECT * FROM user_photos WHERE id = ? AND status = ?').get(id, 'active');
 }
 
-export function getPhotoByIdRaw(id) {
+export async function getPhotoByIdRaw(id) {
   return db.prepare('SELECT * FROM user_photos WHERE id = ?').get(id);
 }
 
-export function getPhotoByFilename(filename) {
+export async function getPhotoByFilename(filename) {
   return db.prepare('SELECT * FROM user_photos WHERE filename = ? AND status = ?').get(filename, 'active');
 }
 
-export function getUserActivePhoto(userId, kind) {
+export async function getUserActivePhoto(userId, kind) {
   return db.prepare('SELECT * FROM user_photos WHERE user_id = ? AND kind = ? AND status = ? ORDER BY id DESC LIMIT 1').get(userId, kind, 'active');
 }
 
-export function getUserPrivatePhotos(userId) {
+export async function getUserPrivatePhotos(userId) {
   return db.prepare("SELECT * FROM user_photos WHERE user_id = ? AND kind = 'private' AND status = 'active' ORDER BY id DESC").all(userId);
 }
 
 // True only when both users have liked each other (mutual match). Used to gate private photos.
-export function isMutualMatch(a, b) {
-  const rows = db.prepare(
+export async function isMutualMatch(a, b) {
+  const rows = await db.prepare(
     `SELECT action FROM match_actions WHERE (actor_id = ? AND target_id = ?) OR (actor_id = ? AND target_id = ?)`
   ).all(a, b, b, a);
   return rows.length === 2 && rows.every((r) => r.action === 'like');
 }
 
 // Latest photo of a kind regardless of review state — used so the owner can see their pending avatar.
-export function getLatestPhoto(userId, kind) {
+export async function getLatestPhoto(userId, kind) {
   return db.prepare('SELECT * FROM user_photos WHERE user_id = ? AND kind = ? AND status = ? ORDER BY id DESC LIMIT 1').get(userId, kind, 'active');
 }
 
-export function getPendingPhotos(status = 'pending', limit = 200) {
+export async function getPendingPhotos(status = 'pending', limit = 200) {
   return db.prepare(
     `SELECT p.*, u.name AS user_name, u.phone AS user_phone
      FROM user_photos p JOIN users u ON u.id = p.user_id
@@ -116,21 +116,21 @@ export function getPendingPhotos(status = 'pending', limit = 200) {
   ).all(status, limit);
 }
 
-export function approvePhoto(photoId, adminId) {
-  const photo = getPhotoByIdRaw(photoId);
+export async function approvePhoto(photoId, adminId) {
+  const photo = await getPhotoByIdRaw(photoId);
   if (!photo || photo.review_status !== 'pending') return { ok: false, code: 'NOT_PENDING' };
   // Exactly one approved avatar: retire the previously approved one.
-  db.prepare("UPDATE user_photos SET status = 'deleted' WHERE user_id = ? AND kind = ? AND review_status = 'approved'").run(photo.user_id, photo.kind);
-  db.prepare(`UPDATE user_photos SET review_status = 'approved', reviewed_by = ?, reviewed_at = ?, review_reason = NULL WHERE id = ?`)
+  await db.prepare("UPDATE user_photos SET status = 'deleted' WHERE user_id = ? AND kind = ? AND review_status = 'approved'").run(photo.user_id, photo.kind);
+  await db.prepare(`UPDATE user_photos SET review_status = 'approved', reviewed_by = ?, reviewed_at = ?, review_reason = NULL WHERE id = ?`)
     .run(adminId || null, nowIso(), photoId);
-  if (photo.kind === 'profile') markProfilePhotoDone(photo.user_id);
+  if (photo.kind === 'profile') await markProfilePhotoDone(photo.user_id);
   return { ok: true, userId: photo.user_id, kind: photo.kind };
 }
 
-export function rejectPhoto(photoId, adminId, reason) {
-  const photo = getPhotoByIdRaw(photoId);
+export async function rejectPhoto(photoId, adminId, reason) {
+  const photo = await getPhotoByIdRaw(photoId);
   if (!photo || photo.review_status !== 'pending') return { ok: false, code: 'NOT_PENDING' };
-  db.prepare(`UPDATE user_photos SET status = 'deleted', review_status = 'rejected', reviewed_by = ?, reviewed_at = ?, review_reason = ? WHERE id = ?`)
+  await db.prepare(`UPDATE user_photos SET status = 'deleted', review_status = 'rejected', reviewed_by = ?, reviewed_at = ?, review_reason = ? WHERE id = ?`)
     .run(adminId || null, nowIso(), String(reason || '').slice(0, 500) || null, photoId);
   try { unlinkSync(join(config.uploadsDir, photo.filename)); } catch {}
   return { ok: true, userId: photo.user_id, kind: photo.kind };
@@ -148,29 +148,29 @@ export function readPhotoFile(filename) {
   return readFileSync(path);
 }
 
-export function deletePhoto(userId, kind) {
-  const photo = getUserActivePhoto(userId, kind);
+export async function deletePhoto(userId, kind) {
+  const photo = await getUserActivePhoto(userId, kind);
   if (photo) {
-    db.prepare("UPDATE user_photos SET status = 'deleted' WHERE id = ?").run(photo.id);
+    await db.prepare("UPDATE user_photos SET status = 'deleted' WHERE id = ?").run(photo.id);
     try { unlinkSync(join(config.uploadsDir, photo.filename)); } catch {}
   }
-  const pending = db.prepare("SELECT * FROM user_photos WHERE user_id = ? AND kind = ? AND status = 'active' AND review_status = 'pending' ORDER BY id DESC LIMIT 1").get(userId, kind);
+  const pending = await db.prepare("SELECT * FROM user_photos WHERE user_id = ? AND kind = ? AND status = 'active' AND review_status = 'pending' ORDER BY id DESC LIMIT 1").get(userId, kind);
   if (pending) {
-    db.prepare("UPDATE user_photos SET status = 'deleted' WHERE id = ?").run(pending.id);
+    await db.prepare("UPDATE user_photos SET status = 'deleted' WHERE id = ?").run(pending.id);
     try { unlinkSync(join(config.uploadsDir, pending.filename)); } catch {}
   }
   return { ok: true };
 }
 
-export function deletePrivatePhoto(userId, photoId) {
-  const photo = db.prepare("SELECT * FROM user_photos WHERE id = ? AND user_id = ? AND kind = 'private'").get(photoId, userId);
+export async function deletePrivatePhoto(userId, photoId) {
+  const photo = await db.prepare("SELECT * FROM user_photos WHERE id = ? AND user_id = ? AND kind = 'private'").get(photoId, userId);
   if (!photo) return { ok: false, code: 'NOT_FOUND' };
-  db.prepare("UPDATE user_photos SET status = 'deleted' WHERE id = ?").run(photo.id);
+  await db.prepare("UPDATE user_photos SET status = 'deleted' WHERE id = ?").run(photo.id);
   try { unlinkSync(join(config.uploadsDir, photo.filename)); } catch {}
   return { ok: true };
 }
 
-export function canViewPhoto(photo, viewerId, viewerRole) {
+export async function canViewPhoto(photo, viewerId, viewerRole) {
   if (!photo || photo.status !== 'active') return false;
   const isStaff = viewerRole === 'admin' || viewerRole === 'super_admin';
   if (isStaff) return true;
@@ -190,28 +190,28 @@ export function photoUrl(photo) {
   return `/api/photos/${photo.filename}`;
 }
 
-export function markProfilePhotoDone(userId) {
+export async function markProfilePhotoDone(userId) {
   const spec = { domain: 'Verification', tier: 1, weight: 10, type: 'flag' };
-  db.prepare(
+  await db.prepare(
     `INSERT INTO profile_fields (user_id, field_key, value, domain, sensitive, updated_at)
      VALUES (?, 'photo_done', '1', ?, 0, ?)
-     ON CONFLICT(user_id, field_key) DO UPDATE SET value = '1', updated_at = excluded.updated_at`
+     ON DUPLICATE KEY UPDATE value = VALUES(value), updated_at = VALUES(updated_at)`
   ).run(userId, spec.domain, new Date().toISOString().slice(0, 19));
 }
 
-export function markSelfieDone(userId) {
+export async function markSelfieDone(userId) {
   const spec = { domain: 'Verification', tier: 1, weight: 15, type: 'flag' };
-  db.prepare(
+  await db.prepare(
     `INSERT INTO profile_fields (user_id, field_key, value, domain, sensitive, updated_at)
      VALUES (?, 'selfie_done', '1', ?, 0, ?)
-     ON CONFLICT(user_id, field_key) DO UPDATE SET value = '1', updated_at = excluded.updated_at`
+     ON DUPLICATE KEY UPDATE value = VALUES(value), updated_at = VALUES(updated_at)`
   ).run(userId, spec.domain, new Date().toISOString().slice(0, 19));
 }
 
-export function clearProfilePhotoDone(userId) {
-  db.prepare("DELETE FROM profile_fields WHERE user_id = ? AND field_key = 'photo_done'").run(userId);
+export async function clearProfilePhotoDone(userId) {
+  await db.prepare("DELETE FROM profile_fields WHERE user_id = ? AND field_key = 'photo_done'").run(userId);
 }
 
-export function clearSelfieDone(userId) {
-  db.prepare("DELETE FROM profile_fields WHERE user_id = ? AND field_key = 'selfie_done'").run(userId);
+export async function clearSelfieDone(userId) {
+  await db.prepare("DELETE FROM profile_fields WHERE user_id = ? AND field_key = 'selfie_done'").run(userId);
 }

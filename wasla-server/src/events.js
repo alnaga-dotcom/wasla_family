@@ -1,4 +1,4 @@
-import { db } from './db.js';
+import { db, nowIso } from './db.js';
 import { randomBytes } from 'node:crypto';
 
 const VERSION = '1.0';
@@ -14,10 +14,10 @@ export function unsubscribe(eventType, handler) {
   handlers.set(eventType, list.filter((h) => h !== handler));
 }
 
-export function publish(type, payload = {}, source = 'api', { userId = null, entityType = null, entityId = null, correlationId = null } = {}) {
+export async function publish(type, payload = {}, source = 'api', { userId = null, entityType = null, entityId = null, correlationId = null } = {}) {
   const eventId = 'evt_' + randomBytes(12).toString('hex');
-  const now = new Date().toISOString();
-  db.prepare(
+  const now = nowIso();
+  await db.prepare(
     `INSERT INTO events (event_id, type, version, source, user_id, entity_type, entity_id, correlation_id, payload, published_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(eventId, type, VERSION, source, userId, entityType, entityId, correlationId, JSON.stringify(payload), now);
@@ -36,7 +36,7 @@ export function publish(type, payload = {}, source = 'api', { userId = null, ent
   return eventId;
 }
 
-export function listEvents({ type, entityType, entityId, limit = 100 } = {}) {
+export async function listEvents({ type, entityType, entityId, limit = 100 } = {}) {
   let sql = 'SELECT * FROM events WHERE 1=1';
   const params = [];
   if (type) { sql += ' AND type = ?'; params.push(type); }
@@ -44,15 +44,17 @@ export function listEvents({ type, entityType, entityId, limit = 100 } = {}) {
   if (entityId) { sql += ' AND entity_id = ?'; params.push(entityId); }
   sql += ' ORDER BY id DESC LIMIT ?';
   params.push(limit);
-  return db.prepare(sql).all(...params).map((r) => ({ ...r, payload: JSON.parse(r.payload || '{}') }));
+  const rows = await db.prepare(sql).all(...params);
+  return rows.map((r) => ({ ...r, payload: JSON.parse(r.payload || '{}') }));
 }
 
-export function eventTypes() {
-  return db.prepare('SELECT DISTINCT type FROM events ORDER BY type').all().map((r) => r.type);
+export async function eventTypes() {
+  const rows = await db.prepare('SELECT DISTINCT type FROM events ORDER BY type').all();
+  return rows.map((r) => r.type);
 }
 
-export function markProcessed(eventId) {
-  db.prepare('UPDATE events SET processed_at = ? WHERE event_id = ?').run(new Date().toISOString(), eventId);
+export async function markProcessed(eventId) {
+  await db.prepare('UPDATE events SET processed_at = ? WHERE event_id = ?').run(nowIso(), eventId);
 }
 
 export function publishEventForRoute(type, req, payload = {}, entityType = null, entityId = null) {

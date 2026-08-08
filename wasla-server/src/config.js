@@ -17,10 +17,16 @@ export const config = {
   publicDomain: process.env.WASLA_PUBLIC_DOMAIN || '',
   // Allowed CORS origins in production (comma-separated). Empty/default = local dev wildcard.
   corsOrigins: (process.env.WASLA_CORS_ORIGINS || '').split(',').map((s) => s.trim()).filter(Boolean),
+  // MySQL (Hostinger managed database — survives redeploys, never wiped)
+  db: {
+    host: process.env.WASLA_DB_HOST || '127.0.0.1',
+    port: Number(process.env.WASLA_DB_PORT || 3306),
+    user: process.env.WASLA_DB_USER || 'root',
+    password: process.env.WASLA_DB_PASSWORD || '',
+    name: process.env.WASLA_DB_NAME || 'wasla',
+  },
   // Security
   trustProxy: process.env.WASLA_TRUST_PROXY === 'true',
-  // Persistent data directory (Render mounts a disk here). Must survive restarts/redeploys.
-  dataDir: process.env.WASLA_DATA_DIR || join(__dirname, '..', 'data'),
   uploadsDir: process.env.WASLA_UPLOADS_DIR || join(__dirname, '..', 'uploads'),
   // Payments: 'mock' (instant, no real money) or '066city'. Set to 'mock' to disable live gateways.
   paymentProvider: process.env.WASLA_PAYMENT_PROVIDER || 'mock',

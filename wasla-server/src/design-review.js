@@ -10,7 +10,14 @@ import { FIELD_SPECS } from './fields.js';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const docsDir = join(__dirname, '..', '..', 'docs');
 
-export function runDesignReview() {
+async function tableExists(name) {
+  const row = await db.prepare(
+    `SELECT 1 FROM information_schema.TABLES WHERE table_schema = DATABASE() AND table_name = ? LIMIT 1`
+  ).get(name);
+  return !!row;
+}
+
+export async function runDesignReview() {
   const checks = [];
   let pass = 0;
   let fail = 0;
@@ -35,15 +42,15 @@ export function runDesignReview() {
   }
 
   // 2. Role-permission matrix (Wasla_25)
-  const permCount = listAllPermissions().length;
+  const permCount = (await listAllPermissions()).length;
   add('role_permission_matrix', permCount >= 30, `permissions=${permCount}`);
 
   // 3. Match threshold default 60 (Wasla_12 / F10)
-  const threshold = getThreshold();
+  const threshold = await getThreshold();
   add('match_threshold_default_60', threshold === 60, `threshold=${threshold}`);
 
   // 4. Canonical plans exist with crossed-out regular prices (Wasla_17)
-  const plans = db.prepare('SELECT code, price_egp, regular_price_egp FROM plans ORDER BY price_egp').all();
+  const plans = await db.prepare('SELECT code, price_egp, regular_price_egp FROM plans ORDER BY price_egp').all();
   const expectedCodes = ['intro', 'monthly', 'quarterly'];
   const plansOk = expectedCodes.every((code) => {
     const p = plans.find((pl) => pl.code === code);
@@ -55,29 +62,29 @@ export function runDesignReview() {
   const freePlan = plans.find((p) => p.code === 'intro');
   add('free_plan_exists', !!freePlan, freePlan ? `price=${freePlan.price_egp}` : 'missing');
 
-  // 6. Discovery is text-first (no swipe cards) — verified by search endpoint existing (Wasla_19)
-  const searchRoute = db.prepare(`SELECT 1 FROM sqlite_master WHERE type='table' AND name='users'`).get();
-  add('search_text_based', !!searchRoute, 'users table present for search');
+  // 6. Discovery is text-first (no swipe cards) — verified by users table existing (Wasla_19)
+  const usersTable = await tableExists('users');
+  add('search_text_based', usersTable, 'users table present for search');
 
   // 7. Messages require mutual like — check no table allows one-way bypass
-  const messagesTable = db.prepare(`SELECT 1 FROM sqlite_master WHERE type='table' AND name='messages'`).get();
-  add('messages_table_exists', !!messagesTable);
+  const messagesTable = await tableExists('messages');
+  add('messages_table_exists', messagesTable);
 
   // 8. Moderation engine active
-  const moderationTable = db.prepare(`SELECT 1 FROM sqlite_master WHERE type='table' AND name='moderation_items'`).get();
-  add('moderation_items_table_exists', !!moderationTable);
+  const moderationTable = await tableExists('moderation_items');
+  add('moderation_items_table_exists', moderationTable);
 
   // 14. Photo upload table exists
-  const photosTable = db.prepare(`SELECT 1 FROM sqlite_master WHERE type='table' AND name='user_photos'`).get();
-  add('user_photos_table_exists', !!photosTable);
+  const photosTable = await tableExists('user_photos');
+  add('user_photos_table_exists', photosTable);
 
   // 9. Workflows seeded
-  const workflowDefs = db.prepare('SELECT COUNT(*) AS c FROM workflow_definitions').get().c;
+  const workflowDefs = (await db.prepare('SELECT COUNT(*) AS c FROM workflow_definitions').get()).c;
   add('workflows_seeded', workflowDefs > 0, `definitions=${workflowDefs}`);
 
   // 10. Audit log table exists
-  const auditTable = db.prepare(`SELECT 1 FROM sqlite_master WHERE type='table' AND name='admin_actions'`).get();
-  add('audit_log_table_exists', !!auditTable);
+  const auditTable = await tableExists('admin_actions');
+  add('audit_log_table_exists', auditTable);
 
   // 11. Sensitive fields marked in schema
   const sensitiveFields = Object.values(FIELD_SPECS).filter((f) => f.sensitive).length;
@@ -90,8 +97,8 @@ export function runDesignReview() {
   // 13. Admin endpoints present (smoke-level sanity)
   const adminTables = ['users','reports','payments','subscriptions','role_permissions','workflow_definitions','rules'];
   for (const t of adminTables) {
-    const exists = db.prepare(`SELECT 1 FROM sqlite_master WHERE type='table' AND name=?`).get(t);
-    add(`admin_table:${t}`, !!exists);
+    const exists = await tableExists(t);
+    add(`admin_table:${t}`, exists);
   }
 
   const passed = fail === 0;

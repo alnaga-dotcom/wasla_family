@@ -9,30 +9,31 @@ export function initRealtime(server) {
   const wss = new WebSocketServer({ server, path: '/ws' });
 
   wss.on('connection', (ws, req) => {
-    const userId = authenticate(req);
-    if (!userId) {
-      ws.close(4001, 'unauthorized');
-      return;
-    }
-    ws.userId = userId;
-    if (!clients.has(userId)) clients.set(userId, new Set());
-    clients.get(userId).add(ws);
-    logger.info(`ws user ${userId} connected (${clients.get(userId).size} sockets)`);
-
-    ws.on('close', () => {
-      const set = clients.get(userId);
-      if (set) {
-        set.delete(ws);
-        if (set.size === 0) clients.delete(userId);
+    authenticate(req).then((userId) => {
+      if (!userId) {
+        ws.close(4001, 'unauthorized');
+        return;
       }
-    });
-    ws.on('error', () => ws.close());
+      ws.userId = userId;
+      if (!clients.has(userId)) clients.set(userId, new Set());
+      clients.get(userId).add(ws);
+      logger.info(`ws user ${userId} connected (${clients.get(userId).size} sockets)`);
+
+      ws.on('close', () => {
+        const set = clients.get(userId);
+        if (set) {
+          set.delete(ws);
+          if (set.size === 0) clients.delete(userId);
+        }
+      });
+      ws.on('error', () => ws.close());
+    }).catch(() => ws.close(4001, 'unauthorized'));
   });
 
   return wss;
 }
 
-function authenticate(req) {
+async function authenticate(req) {
   const url = new URL(req.url, 'http://localhost');
   const qToken = url.searchParams.get('token');
   const hToken = (req.headers.authorization || '').startsWith('Bearer ')
@@ -40,8 +41,8 @@ function authenticate(req) {
     : null;
   const token = qToken || hToken;
   if (!token) return null;
-  const row = db.prepare(
-    'SELECT user_id FROM sessions WHERE token = ? AND expires_at > datetime(\'now\')'
+  const row = await db.prepare(
+    'SELECT user_id FROM sessions WHERE token = ? AND expires_at > NOW()'
   ).get(token);
   return row ? row.user_id : null;
 }

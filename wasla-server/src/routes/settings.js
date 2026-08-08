@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { db } from '../db.js';
+import { ah } from '../async-handler.js';
 import { apiError } from '../validate.js';
 import { authRequired } from '../middleware/auth.js';
 
@@ -7,25 +8,25 @@ const router = Router();
 
 const DEFAULTS = { photo_visibility: 0, last_seen_on: 1, paused: 0 };
 
-function ensureRow(userId) {
-  db.prepare('INSERT OR IGNORE INTO user_settings (user_id) VALUES (?)').run(userId);
+async function ensureRow(userId) {
+  await db.prepare('INSERT IGNORE INTO user_settings (user_id) VALUES (?)').run(userId);
 }
 
-function settingsFor(userId) {
-  ensureRow(userId);
-  const row = db.prepare('SELECT photo_visibility, last_seen_on, paused FROM user_settings WHERE user_id = ?').get(userId);
+async function settingsFor(userId) {
+  await ensureRow(userId);
+  const row = await db.prepare('SELECT photo_visibility, last_seen_on, paused FROM user_settings WHERE user_id = ?').get(userId);
   return row || { ...DEFAULTS };
 }
 
 // GET /api/settings
-router.get('/settings', authRequired, (req, res) => {
-  res.json({ settings: settingsFor(req.userId) });
-});
+router.get('/settings', authRequired, ah(async (req, res) => {
+  res.json({ settings: await settingsFor(req.userId) });
+}));
 
 // PATCH /api/settings  { photo_visibility?, last_seen_on?, paused? }
-router.patch('/settings', authRequired, (req, res) => {
+router.patch('/settings', authRequired, ah(async (req, res) => {
   const body = req.body || {};
-  const current = settingsFor(req.userId);
+  const current = await settingsFor(req.userId);
   const next = { ...current };
 
   if (body.photo_visibility !== undefined) {
@@ -44,15 +45,15 @@ router.patch('/settings', authRequired, (req, res) => {
     next.paused = body.paused ? 1 : 0;
   }
 
-  db.prepare(
+  await db.prepare(
     `INSERT INTO user_settings (user_id, photo_visibility, last_seen_on, paused) VALUES (?, ?, ?, ?)
-     ON CONFLICT(user_id) DO UPDATE SET
-       photo_visibility = excluded.photo_visibility,
-       last_seen_on = excluded.last_seen_on,
-       paused = excluded.paused`
+     ON DUPLICATE KEY UPDATE
+       photo_visibility = VALUES(photo_visibility),
+       last_seen_on = VALUES(last_seen_on),
+       paused = VALUES(paused)`
   ).run(req.userId, next.photo_visibility, next.last_seen_on, next.paused);
 
   res.json({ settings: next });
-});
+}));
 
 export default router;

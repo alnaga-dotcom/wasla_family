@@ -1,513 +1,563 @@
-import { DatabaseSync } from 'node:sqlite';
-import { mkdirSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import mysql from 'mysql2/promise';
 import { config } from './config.js';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const dataDir = config.dataDir;
-mkdirSync(dataDir, { recursive: true });
+const pool = mysql.createPool({
+  host: config.db.host,
+  port: config.db.port,
+  user: config.db.user,
+  password: config.db.password,
+  database: config.db.name,
+  waitForConnections: true,
+  connectionLimit: 10,
+  charset: 'utf8mb4',
+  timezone: 'Z',
+  dateStrings: true,
+  multipleStatements: true,
+});
 
-export const db = new DatabaseSync(join(dataDir, 'wasla.db'));
+// Mimic the node:sqlite API (prepare().get/all/run) but async, backed by MySQL.
+function makeExecutor(conn) {
+  const exec = (sql) => conn.execute(sql).then(([rows]) => ({ rows }));
+  const query = (sql) => conn.query(sql).then(([rows]) => ({ rows }));
+  return {
+    prepare(sql) {
+      return {
+        get: (...params) => conn.execute(sql, params).then(([rows]) => rows[0] ?? undefined),
+        all: (...params) => conn.execute(sql, params).then(([rows]) => rows),
+        run: (...params) => conn.execute(sql, params).then(([result]) => ({ changes: result.affectedRows, lastInsertRowid: result.insertId })),
+      };
+    },
+    exec,
+    query,
+  };
+}
 
-db.exec(`
-  PRAGMA journal_mode = WAL;
-  PRAGMA foreign_keys = ON;
+export const db = {
+  prepare(sql) {
+    return {
+      get: (...params) => pool.execute(sql, params).then(([rows]) => rows[0] ?? undefined),
+      all: (...params) => pool.execute(sql, params).then(([rows]) => rows),
+      run: (...params) => pool.execute(sql, params).then(([result]) => ({ changes: result.affectedRows, lastInsertRowid: result.insertId })),
+    };
+  },
+  exec(sql) {
+    return pool.query(sql).then(([rows]) => ({ rows }));
+  },
+  async transaction(fn) {
+    const conn = await pool.getConnection();
+    try {
+      await conn.beginTransaction();
+      const result = await fn(makeExecutor(conn));
+      await conn.commit();
+      return result;
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
+  },
+  async close() {
+    await pool.end();
+  },
+  pool,
+};
 
+const SCHEMA = [
+  `
   CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    phone TEXT NOT NULL UNIQUE,
-    email TEXT,
-    gender TEXT NOT NULL CHECK (gender IN ('male','female')),
-    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','active','suspended')),
-    email_verified_at TEXT,
-    phone_verified_at TEXT,
-    verified_at TEXT,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-  );
-
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    name VARCHAR(255) NOT NULL,
+    phone VARCHAR(50) NOT NULL,
+    email VARCHAR(255),
+    gender VARCHAR(10) NOT NULL CHECK (gender IN ('male','female')),
+    status VARCHAR(16) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','active','suspended')),
+    role VARCHAR(32) NOT NULL DEFAULT 'user' CHECK (role IN ('user','viewer','moderator','verification_officer','customer_support','rule_admin','subscription_admin','admin','super_admin')),
+    trust_level INT NOT NULL DEFAULT 1,
+    push_token TEXT,
+    email_verified_at DATETIME,
+    phone_verified_at DATETIME,
+    verified_at DATETIME,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    deleted_at DATETIME,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_users_phone (phone)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  `,
+  `
   CREATE TABLE IF NOT EXISTS otp_codes (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL REFERENCES users(id),
-    code TEXT NOT NULL,
-    purpose TEXT NOT NULL DEFAULT 'register',
-    expires_at TEXT NOT NULL,
-    used_at TEXT
-  );
-  CREATE INDEX IF NOT EXISTS idx_otp_user ON otp_codes(user_id);
-
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    user_id INT UNSIGNED NOT NULL,
+    code VARCHAR(16) NOT NULL,
+    purpose VARCHAR(32) NOT NULL DEFAULT 'register',
+    expires_at DATETIME NOT NULL,
+    used_at DATETIME,
+    PRIMARY KEY (id),
+    KEY idx_otp_user (user_id)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  `,
+  `
   CREATE TABLE IF NOT EXISTS sessions (
-    token TEXT PRIMARY KEY,
-    user_id INTEGER NOT NULL REFERENCES users(id),
-    created_at TEXT NOT NULL DEFAULT (datetime('now')),
-    expires_at TEXT NOT NULL
-  );
-  CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
-
+    token VARCHAR(64) PRIMARY KEY,
+    user_id INT UNSIGNED NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    expires_at DATETIME NOT NULL,
+    KEY idx_sessions_user (user_id)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  `,
+  `
   CREATE TABLE IF NOT EXISTS profile_fields (
-    user_id INTEGER NOT NULL REFERENCES users(id),
-    field_key TEXT NOT NULL,
+    user_id INT UNSIGNED NOT NULL,
+    field_key VARCHAR(100) NOT NULL,
     value TEXT NOT NULL,
-    domain TEXT NOT NULL,
-    sensitive INTEGER NOT NULL DEFAULT 0,
-    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-    PRIMARY KEY (user_id, field_key)
-  );
-
+    domain VARCHAR(32) NOT NULL,
+    sensitive INT NOT NULL DEFAULT 0,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id, field_key),
+    KEY idx_pf_domain (domain)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  `,
+  `
   CREATE TABLE IF NOT EXISTS discovery_views (
-    actor_id INTEGER NOT NULL REFERENCES users(id),
-    target_id INTEGER NOT NULL REFERENCES users(id),
-    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    actor_id INT UNSIGNED NOT NULL,
+    target_id INT UNSIGNED NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (actor_id, target_id)
-  );
-
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  `,
+  `
   CREATE TABLE IF NOT EXISTS match_actions (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    actor_id INTEGER NOT NULL REFERENCES users(id),
-    target_id INTEGER NOT NULL REFERENCES users(id),
-    action TEXT NOT NULL CHECK (action IN ('like','pass')),
-    created_at TEXT NOT NULL DEFAULT (datetime('now')),
-    UNIQUE (actor_id, target_id)
-  );
-  CREATE INDEX IF NOT EXISTS idx_actions_target ON match_actions(target_id);
-
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    actor_id INT UNSIGNED NOT NULL,
+    target_id INT UNSIGNED NOT NULL,
+    action VARCHAR(8) NOT NULL CHECK (action IN ('like','pass')),
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_actions_pair (actor_id, target_id),
+    KEY idx_actions_target (target_id)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  `,
+  `
   CREATE TABLE IF NOT EXISTS archived_matches (
-    user_id INTEGER NOT NULL REFERENCES users(id),
-    other_id INTEGER NOT NULL REFERENCES users(id),
-    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    user_id INT UNSIGNED NOT NULL,
+    other_id INT UNSIGNED NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (user_id, other_id)
-  );
-
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  `,
+  `
   CREATE TABLE IF NOT EXISTS messages (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    sender_id INTEGER NOT NULL REFERENCES users(id),
-    receiver_id INTEGER NOT NULL REFERENCES users(id),
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    sender_id INT UNSIGNED NOT NULL,
+    receiver_id INT UNSIGNED NOT NULL,
     text TEXT,
-    kind TEXT NOT NULL DEFAULT 'text' CHECK (kind IN ('text','ephemeral')),
-    is_read INTEGER NOT NULL DEFAULT 0,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-  );
-  CREATE INDEX IF NOT EXISTS idx_msgs_pair ON messages(sender_id, receiver_id, id);
-
+    kind VARCHAR(16) NOT NULL DEFAULT 'text' CHECK (kind IN ('text','ephemeral')),
+    is_read INT NOT NULL DEFAULT 0,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_msgs_pair (sender_id, receiver_id, id)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  `,
+  `
   CREATE TABLE IF NOT EXISTS blocked_members (
-    user_id INTEGER NOT NULL REFERENCES users(id),
-    blocked_id INTEGER NOT NULL REFERENCES users(id),
-    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    user_id INT UNSIGNED NOT NULL,
+    blocked_id INT UNSIGNED NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (user_id, blocked_id)
-  );
-
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  `,
+  `
   CREATE TABLE IF NOT EXISTS reports (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    reporter_id INTEGER NOT NULL REFERENCES users(id),
-    reported_id INTEGER NOT NULL REFERENCES users(id),
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    reporter_id INT UNSIGNED NOT NULL,
+    reported_id INT UNSIGNED NOT NULL,
     reason TEXT,
-    status TEXT NOT NULL DEFAULT 'pending',
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-  );
-
+    status VARCHAR(16) NOT NULL DEFAULT 'pending',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  `,
+  `
   CREATE TABLE IF NOT EXISTS user_settings (
-    user_id INTEGER PRIMARY KEY REFERENCES users(id),
-    photo_visibility INTEGER NOT NULL DEFAULT 0,
-    last_seen_on INTEGER NOT NULL DEFAULT 1,
-    paused INTEGER NOT NULL DEFAULT 0
-  );
-
+    user_id INT UNSIGNED PRIMARY KEY,
+    photo_visibility INT NOT NULL DEFAULT 0,
+    last_seen_on INT NOT NULL DEFAULT 1,
+    paused INT NOT NULL DEFAULT 0
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  `,
+  `
   CREATE TABLE IF NOT EXISTS notifications (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL REFERENCES users(id),
-    from_user_id INTEGER,
-    type TEXT NOT NULL,
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    user_id INT UNSIGNED NOT NULL,
+    from_user_id INT UNSIGNED,
+    type VARCHAR(32) NOT NULL,
     text TEXT NOT NULL,
-    is_read INTEGER NOT NULL DEFAULT 0,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-  );
-  CREATE INDEX IF NOT EXISTS idx_notif_user ON notifications(user_id, is_read);
-
+    is_read INT NOT NULL DEFAULT 0,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_notif_user (user_id, is_read)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  `,
+  `
   CREATE TABLE IF NOT EXISTS favorites (
-    user_id INTEGER NOT NULL REFERENCES users(id),
-    favorite_id INTEGER NOT NULL REFERENCES users(id),
-    created_at TEXT NOT NULL DEFAULT (datetime('now')),
-    PRIMARY KEY (user_id, favorite_id)
-  );
-  CREATE INDEX IF NOT EXISTS idx_fav_target ON favorites(favorite_id);
-
+    user_id INT UNSIGNED NOT NULL,
+    favorite_id INT UNSIGNED NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id, favorite_id),
+    KEY idx_fav_target (favorite_id)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  `,
+  `
   CREATE TABLE IF NOT EXISTS plans (
-    code TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    duration_months INTEGER NOT NULL DEFAULT 1,
-    price_egp INTEGER NOT NULL DEFAULT 0,
-    regular_price_egp INTEGER,
-    features TEXT NOT NULL DEFAULT '[]',
-    status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active','inactive'))
-  );
-
+    code VARCHAR(32) PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    duration_months INT NOT NULL DEFAULT 1,
+    price_egp INT NOT NULL DEFAULT 0,
+    regular_price_egp INT,
+    features TEXT NOT NULL DEFAULT ('[]'),
+    status VARCHAR(16) NOT NULL DEFAULT 'active' CHECK (status IN ('active','inactive'))
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  `,
+  `
   CREATE TABLE IF NOT EXISTS subscriptions (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL REFERENCES users(id),
-    plan_code TEXT NOT NULL REFERENCES plans(code),
-    status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('pending','paid','active','expired','cancelled')),
-    starts_at TEXT NOT NULL,
-    ends_at TEXT NOT NULL,
-    auto_renew INTEGER NOT NULL DEFAULT 0,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-  );
-  CREATE INDEX IF NOT EXISTS idx_subs_user ON subscriptions(user_id, status, ends_at);
-
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    user_id INT UNSIGNED NOT NULL,
+    plan_code VARCHAR(32) NOT NULL,
+    status VARCHAR(16) NOT NULL DEFAULT 'active' CHECK (status IN ('pending','paid','active','expired','cancelled')),
+    starts_at DATETIME NOT NULL,
+    ends_at DATETIME NOT NULL,
+    auto_renew INT NOT NULL DEFAULT 0,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_subs_user (user_id, status, ends_at)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  `,
+  `
   CREATE TABLE IF NOT EXISTS daily_quotas (
-    user_id INTEGER NOT NULL REFERENCES users(id),
-    day TEXT NOT NULL,
-    likes_used INTEGER NOT NULL DEFAULT 0,
-    messages_used INTEGER NOT NULL DEFAULT 0,
+    user_id INT UNSIGNED NOT NULL,
+    day VARCHAR(16) NOT NULL,
+    likes_used INT NOT NULL DEFAULT 0,
+    messages_used INT NOT NULL DEFAULT 0,
     PRIMARY KEY (user_id, day)
-  );
-
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  `,
+  `
   CREATE TABLE IF NOT EXISTS payments (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL REFERENCES users(id),
-    subscription_id INTEGER REFERENCES subscriptions(id),
-    amount_egp INTEGER NOT NULL,
-    provider TEXT,
-    provider_ref TEXT,
-    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','paid','failed','refunded')),
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-  );
-
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    user_id INT UNSIGNED NOT NULL,
+    subscription_id INT UNSIGNED,
+    amount_egp INT NOT NULL,
+    provider VARCHAR(64),
+    provider_ref VARCHAR(255),
+    status VARCHAR(16) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','paid','failed','refunded')),
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  `,
+  `
   CREATE TABLE IF NOT EXISTS admin_actions (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    actor_id INTEGER REFERENCES users(id),
-    actor_role TEXT,
-    action TEXT NOT NULL,
-    target_type TEXT NOT NULL,
-    target_id TEXT,
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    actor_id INT UNSIGNED,
+    actor_role VARCHAR(32),
+    action VARCHAR(64) NOT NULL,
+    target_type VARCHAR(64) NOT NULL,
+    target_id VARCHAR(100),
     reason TEXT,
     meta TEXT,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-  );
-  CREATE INDEX IF NOT EXISTS idx_admin_actions_actor ON admin_actions(actor_id, created_at);
-  CREATE INDEX IF NOT EXISTS idx_admin_actions_target ON admin_actions(target_type, target_id, created_at);
-
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_admin_actions_actor (actor_id, created_at),
+    KEY idx_admin_actions_target (target_type, target_id, created_at)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  `,
+  `
   CREATE TABLE IF NOT EXISTS moderation_items (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL REFERENCES users(id),
-    item_type TEXT NOT NULL CHECK (item_type IN ('message','profile_field','report','display_name')),
-    item_id TEXT,
-    field_key TEXT,
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    user_id INT UNSIGNED NOT NULL,
+    item_type VARCHAR(32) NOT NULL CHECK (item_type IN ('message','profile_field','report','display_name')),
+    item_id VARCHAR(100),
+    field_key VARCHAR(100),
     original_text TEXT,
     normalized_text TEXT,
-    risk_score INTEGER NOT NULL DEFAULT 0,
-    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','approved','rejected','overturned')),
+    risk_score INT NOT NULL DEFAULT 0,
+    status VARCHAR(16) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','approved','rejected','overturned')),
     violations TEXT,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-  );
-  CREATE INDEX IF NOT EXISTS idx_moderation_status ON moderation_items(status, risk_score DESC);
-  CREATE INDEX IF NOT EXISTS idx_moderation_user ON moderation_items(user_id, created_at);
-
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_moderation_status (status, risk_score DESC),
+    KEY idx_moderation_user (user_id, created_at)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  `,
+  `
   CREATE TABLE IF NOT EXISTS moderation_decisions (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    item_id INTEGER NOT NULL REFERENCES moderation_items(id),
-    actor_id INTEGER REFERENCES users(id),
-    actor_role TEXT,
-    action TEXT NOT NULL CHECK (action IN ('approve','reject','overturn')),
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    item_id INT UNSIGNED NOT NULL,
+    actor_id INT UNSIGNED,
+    actor_role VARCHAR(32),
+    action VARCHAR(16) NOT NULL CHECK (action IN ('approve','reject','overturn')),
     reason TEXT,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-  );
-  CREATE INDEX IF NOT EXISTS idx_moderation_decisions_item ON moderation_decisions(item_id);
-
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_moderation_decisions_item (item_id)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  `,
+  `
   CREATE TABLE IF NOT EXISTS match_scores (
-    user_id INTEGER NOT NULL REFERENCES users(id),
-    target_id INTEGER NOT NULL REFERENCES users(id),
-    score INTEGER NOT NULL DEFAULT 0,
-    level TEXT NOT NULL DEFAULT 'low',
+    user_id INT UNSIGNED NOT NULL,
+    target_id INT UNSIGNED NOT NULL,
+    score INT NOT NULL DEFAULT 0,
+    level VARCHAR(8) NOT NULL DEFAULT 'low',
     reasons TEXT,
-    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-    PRIMARY KEY (user_id, target_id)
-  );
-  CREATE INDEX IF NOT EXISTS idx_match_scores_user ON match_scores(user_id, score DESC);
-
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id, target_id),
+    KEY idx_match_scores_user (user_id, score DESC)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  `,
+  `
   CREATE TABLE IF NOT EXISTS app_config (
-    key TEXT PRIMARY KEY,
+    config_key VARCHAR(100) PRIMARY KEY,
     value TEXT NOT NULL,
-    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-  );
-
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  `,
+  `
   CREATE TABLE IF NOT EXISTS events (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    event_id TEXT NOT NULL UNIQUE,
-    type TEXT NOT NULL,
-    version TEXT NOT NULL DEFAULT '1.0',
-    source TEXT NOT NULL,
-    user_id INTEGER,
-    entity_type TEXT,
-    entity_id TEXT,
-    correlation_id TEXT,
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    event_id VARCHAR(64) NOT NULL,
+    type VARCHAR(64) NOT NULL,
+    version VARCHAR(16) NOT NULL DEFAULT '1.0',
+    source VARCHAR(64) NOT NULL,
+    user_id INT UNSIGNED,
+    entity_type VARCHAR(64),
+    entity_id VARCHAR(100),
+    correlation_id VARCHAR(100),
     payload TEXT NOT NULL,
-    published_at TEXT NOT NULL DEFAULT (datetime('now')),
-    processed_at TEXT
-  );
-  CREATE INDEX IF NOT EXISTS idx_events_type ON events(type, published_at);
-  CREATE INDEX IF NOT EXISTS idx_events_entity ON events(entity_type, entity_id, published_at);
-
+    published_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    processed_at DATETIME,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_events_event_id (event_id),
+    KEY idx_events_type (type, published_at),
+    KEY idx_events_entity (entity_type, entity_id, published_at)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  `,
+  `
   CREATE TABLE IF NOT EXISTS workflow_definitions (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    key TEXT NOT NULL,
-    version INTEGER NOT NULL DEFAULT 1,
-    name TEXT NOT NULL,
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    wf_key VARCHAR(100) NOT NULL,
+    version INT NOT NULL DEFAULT 1,
+    name VARCHAR(255) NOT NULL,
     states TEXT NOT NULL,
     transitions TEXT NOT NULL,
-    status TEXT NOT NULL DEFAULT 'published' CHECK (status IN ('draft','published','archived')),
-    created_at TEXT NOT NULL DEFAULT (datetime('now')),
-    UNIQUE (key, version)
-  );
-
+    status VARCHAR(16) NOT NULL DEFAULT 'published' CHECK (status IN ('draft','published','archived')),
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_wf_def_key_ver (wf_key, version)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  `,
+  `
   CREATE TABLE IF NOT EXISTS workflow_instances (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    definition_id INTEGER NOT NULL REFERENCES workflow_definitions(id),
-    entity_type TEXT NOT NULL,
-    entity_id TEXT NOT NULL,
-    current_state TEXT NOT NULL,
-    previous_state TEXT,
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    definition_id INT UNSIGNED NOT NULL,
+    entity_type VARCHAR(64) NOT NULL,
+    entity_id VARCHAR(100) NOT NULL,
+    current_state VARCHAR(64) NOT NULL,
+    previous_state VARCHAR(64),
     context TEXT,
-    created_at TEXT NOT NULL DEFAULT (datetime('now')),
-    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-    UNIQUE (definition_id, entity_type, entity_id)
-  );
-  CREATE INDEX IF NOT EXISTS idx_workflow_state ON workflow_instances(current_state, updated_at);
-
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_wf_inst_def_entity (definition_id, entity_type, entity_id),
+    KEY idx_workflow_state (current_state, updated_at)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  `,
+  `
   CREATE TABLE IF NOT EXISTS workflow_history (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    instance_id INTEGER NOT NULL REFERENCES workflow_instances(id),
-    from_state TEXT,
-    to_state TEXT NOT NULL,
-    actor_id INTEGER,
-    actor_role TEXT,
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    instance_id INT UNSIGNED NOT NULL,
+    from_state VARCHAR(64),
+    to_state VARCHAR(64) NOT NULL,
+    actor_id INT UNSIGNED,
+    actor_role VARCHAR(32),
     reason TEXT,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-  );
-  CREATE INDEX IF NOT EXISTS idx_workflow_history ON workflow_history(instance_id, created_at);
-
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_workflow_history (instance_id, created_at)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  `,
+  `
   CREATE TABLE IF NOT EXISTS rules (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    name VARCHAR(255) NOT NULL,
     description TEXT,
-    event_type TEXT NOT NULL,
+    event_type VARCHAR(100) NOT NULL,
     conditions TEXT NOT NULL,
     actions TEXT NOT NULL,
-    priority INTEGER NOT NULL DEFAULT 0,
-    status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active','inactive','draft')),
+    priority INT NOT NULL DEFAULT 0,
+    status VARCHAR(16) NOT NULL DEFAULT 'active' CHECK (status IN ('active','inactive','draft')),
     user_message TEXT,
-    sensitive INTEGER NOT NULL DEFAULT 0,
-    version INTEGER NOT NULL DEFAULT 1,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-  );
-  CREATE INDEX IF NOT EXISTS idx_rules_event ON rules(event_type, priority DESC);
-
+    sensitive INT NOT NULL DEFAULT 0,
+    version INT NOT NULL DEFAULT 1,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_rules_event (event_type, priority DESC)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  `,
+  `
   CREATE TABLE IF NOT EXISTS rule_executions (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    rule_id INTEGER NOT NULL REFERENCES rules(id),
-    event_id TEXT,
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    rule_id INT UNSIGNED NOT NULL,
+    event_id VARCHAR(100),
     context TEXT,
     result TEXT NOT NULL,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-  );
-
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  `,
+  `
   CREATE TABLE IF NOT EXISTS recommendation_history (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    viewer_id INTEGER NOT NULL REFERENCES users(id),
-    target_id INTEGER NOT NULL REFERENCES users(id),
-    source TEXT,
-    position INTEGER,
-    opened INTEGER NOT NULL DEFAULT 0,
-    liked INTEGER NOT NULL DEFAULT 0,
-    ignored INTEGER NOT NULL DEFAULT 0,
-    shown_at TEXT NOT NULL DEFAULT (datetime('now'))
-  );
-  CREATE INDEX IF NOT EXISTS idx_rec_history_viewer ON recommendation_history(viewer_id, target_id, shown_at);
-
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    viewer_id INT UNSIGNED NOT NULL,
+    target_id INT UNSIGNED NOT NULL,
+    source VARCHAR(32),
+    position INT,
+    opened INT NOT NULL DEFAULT 0,
+    liked INT NOT NULL DEFAULT 0,
+    ignored INT NOT NULL DEFAULT 0,
+    shown_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_rec_history_viewer (viewer_id, target_id, shown_at)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  `,
+  `
   CREATE TABLE IF NOT EXISTS role_permissions (
-    role TEXT NOT NULL,
-    resource TEXT NOT NULL,
-    action TEXT NOT NULL,
+    role VARCHAR(64) NOT NULL,
+    resource VARCHAR(64) NOT NULL,
+    action VARCHAR(64) NOT NULL,
     PRIMARY KEY (role, resource, action)
-  );
-
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  `,
+  `
   CREATE TABLE IF NOT EXISTS user_photos (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL REFERENCES users(id),
-    kind TEXT NOT NULL CHECK (kind IN ('profile','selfie')),
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    user_id INT UNSIGNED NOT NULL,
+    kind VARCHAR(16) NOT NULL CHECK (kind IN ('profile','selfie','private')),
     filename TEXT NOT NULL,
     original_name TEXT,
-    mime_type TEXT NOT NULL,
-    size_bytes INTEGER NOT NULL DEFAULT 0,
-    status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active','deleted')),
-    review_status TEXT NOT NULL DEFAULT 'approved' CHECK (review_status IN ('approved','pending','rejected')),
-    reviewed_by INTEGER,
-    reviewed_at TEXT,
+    mime_type VARCHAR(100) NOT NULL,
+    size_bytes INT NOT NULL DEFAULT 0,
+    status VARCHAR(16) NOT NULL DEFAULT 'active' CHECK (status IN ('active','deleted')),
+    review_status VARCHAR(16) NOT NULL DEFAULT 'approved' CHECK (review_status IN ('approved','pending','rejected')),
+    reviewed_by INT UNSIGNED,
+    reviewed_at DATETIME,
     review_reason TEXT,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-  );
-  CREATE INDEX IF NOT EXISTS idx_user_photos_user ON user_photos(user_id, kind);
-
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_user_photos_user (user_id, kind)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  `,
+  `
   CREATE TABLE IF NOT EXISTS verification_requests (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL REFERENCES users(id),
-    type TEXT NOT NULL DEFAULT 'id' CHECK (type IN ('id','selfie')),
-    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','approved','rejected')),
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    user_id INT UNSIGNED NOT NULL,
+    type VARCHAR(8) NOT NULL DEFAULT 'id' CHECK (type IN ('id','selfie')),
+    status VARCHAR(16) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','approved','rejected')),
     note TEXT,
-    reviewed_by INTEGER REFERENCES users(id),
-    reviewed_at TEXT,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-  );
-  CREATE INDEX IF NOT EXISTS idx_ver_req_user ON verification_requests(user_id, status);
-
+    reviewed_by INT UNSIGNED,
+    reviewed_at DATETIME,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_ver_req_user (user_id, status)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  `,
+  `
   CREATE TABLE IF NOT EXISTS posts (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    slug TEXT NOT NULL UNIQUE,
-    title TEXT NOT NULL,
-    category TEXT NOT NULL DEFAULT 'announcement' CHECK (category IN ('story','announcement','thread')),
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    slug VARCHAR(255) NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    category VARCHAR(16) NOT NULL DEFAULT 'announcement' CHECK (category IN ('story','announcement','thread')),
     excerpt TEXT,
     body TEXT NOT NULL,
-    cover_url TEXT,
-    author TEXT,
-    status TEXT NOT NULL DEFAULT 'published' CHECK (status IN ('published','draft')),
-    published_at TEXT,
-    created_at TEXT NOT NULL DEFAULT (datetime('now')),
-    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-  );
-  CREATE INDEX IF NOT EXISTS idx_posts_status ON posts(status, published_at DESC);
-
+    cover_url VARCHAR(500),
+    author VARCHAR(255),
+    status VARCHAR(16) NOT NULL DEFAULT 'published' CHECK (status IN ('published','draft')),
+    published_at DATETIME,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_posts_slug (slug),
+    KEY idx_posts_status (status, published_at DESC)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  `,
+  `
   CREATE TABLE IF NOT EXISTS feedback (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER REFERENCES users(id),
-    name TEXT,
-    contact TEXT,
-    category TEXT NOT NULL DEFAULT 'other' CHECK (category IN ('suggestion','complaint','other')),
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    user_id INT UNSIGNED,
+    name VARCHAR(255),
+    contact VARCHAR(255),
+    category VARCHAR(16) NOT NULL DEFAULT 'other' CHECK (category IN ('suggestion','complaint','other')),
     message TEXT NOT NULL,
-    status TEXT NOT NULL DEFAULT 'new' CHECK (status IN ('new','open','closed')),
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-  );
-  CREATE INDEX IF NOT EXISTS idx_feedback_status ON feedback(status, created_at DESC);
-`);
+    status VARCHAR(16) NOT NULL DEFAULT 'new' CHECK (status IN ('new','open','closed')),
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_feedback_status (status, created_at DESC)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  `,
+];
+
+async function columnExists(table, column) {
+  const row = await db
+    .prepare(`SELECT COUNT(*) AS c FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?`)
+    .get(table, column);
+  return !!row && row.c > 0;
+}
 
 // ترحيلات تدرجية — حقول جديدة فوق الجداول القائمة
-function migrate() {
-  const cols = db.prepare("PRAGMA table_info(users)").all().map((c) => c.name);
-  if (!cols.includes('deleted_at')) {
-    db.exec('ALTER TABLE users ADD COLUMN deleted_at TEXT');
-  }
-  if (!cols.includes('trust_level')) {
-    db.exec('ALTER TABLE users ADD COLUMN trust_level INTEGER NOT NULL DEFAULT 1');
-  }
-  if (!cols.includes('email')) {
-    db.exec('ALTER TABLE users ADD COLUMN email TEXT');
-  }
-  if (!cols.includes('push_token')) {
-    db.exec('ALTER TABLE users ADD COLUMN push_token TEXT');
-  }
-  if (!cols.includes('verified_at')) {
-    db.exec('ALTER TABLE users ADD COLUMN verified_at TEXT');
-  }
-  if (!cols.includes('email_verified_at')) {
-    db.exec('ALTER TABLE users ADD COLUMN email_verified_at TEXT');
-  }
-  if (!cols.includes('phone_verified_at')) {
-    db.exec('ALTER TABLE users ADD COLUMN phone_verified_at TEXT');
+async function migrate() {
+  const usersCols = [
+    ['deleted_at', 'DATETIME'],
+    ['trust_level', 'INT NOT NULL DEFAULT 1'],
+    ['email', 'VARCHAR(255)'],
+    ['push_token', 'TEXT'],
+    ['verified_at', 'DATETIME'],
+    ['email_verified_at', 'DATETIME'],
+    ['phone_verified_at', 'DATETIME'],
+    ['role', `VARCHAR(32) NOT NULL DEFAULT 'user' CHECK (role IN ('user','viewer','moderator','verification_officer','customer_support','rule_admin','subscription_admin','admin','super_admin'))`],
+  ];
+  for (const [col, ddl] of usersCols) {
+    if (!(await columnExists('users', col))) {
+      await db.exec(`ALTER TABLE users ADD COLUMN ${col} ${ddl}`);
+    }
   }
 
-  // Photo moderation columns (profile/selfie review workflow)
-  const pcols = db.prepare("PRAGMA table_info(user_photos)").all().map((c) => c.name);
-  if (!pcols.includes('review_status')) {
-    db.exec(`ALTER TABLE user_photos ADD COLUMN review_status TEXT NOT NULL DEFAULT 'approved' CHECK (review_status IN ('approved','pending','rejected'))`);
-  }
-  if (!pcols.includes('reviewed_by')) {
-    db.exec('ALTER TABLE user_photos ADD COLUMN reviewed_by INTEGER');
-  }
-  if (!pcols.includes('reviewed_at')) {
-    db.exec('ALTER TABLE user_photos ADD COLUMN reviewed_at TEXT');
-  }
-  if (!pcols.includes('review_reason')) {
-    db.exec('ALTER TABLE user_photos ADD COLUMN review_reason TEXT');
-  }
-
-  // Allow 'private' photos (match-only gallery) by recreating the table (SQLite cannot ALTER a CHECK)
-  const photoSql = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='user_photos'").get()?.sql || '';
-  if (photoSql && !photoSql.includes("'private'")) {
-    db.exec(`
-      PRAGMA foreign_keys = OFF;
-      CREATE TABLE user_photos_new (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER NOT NULL REFERENCES users(id),
-        kind TEXT NOT NULL CHECK (kind IN ('profile','selfie','private')),
-        filename TEXT NOT NULL,
-        original_name TEXT,
-        mime_type TEXT NOT NULL,
-        size_bytes INTEGER NOT NULL DEFAULT 0,
-        status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active','deleted')),
-        review_status TEXT NOT NULL DEFAULT 'approved' CHECK (review_status IN ('approved','pending','rejected')),
-        reviewed_by INTEGER,
-        reviewed_at TEXT,
-        review_reason TEXT,
-        created_at TEXT NOT NULL DEFAULT (datetime('now'))
-      );
-      INSERT INTO user_photos_new (id, user_id, kind, filename, original_name, mime_type, size_bytes, status, review_status, reviewed_by, reviewed_at, review_reason, created_at)
-        SELECT id, user_id, kind, filename, original_name, mime_type, size_bytes, status, review_status, reviewed_by, reviewed_at, review_reason, created_at FROM user_photos;
-      DROP TABLE user_photos;
-      ALTER TABLE user_photos_new RENAME TO user_photos;
-      PRAGMA foreign_keys = ON;
-    `);
-    db.exec('CREATE INDEX IF NOT EXISTS idx_user_photos_user ON user_photos(user_id, kind)');
-  }
-
-  const roleAllowed = "'user','viewer','moderator','verification_officer','customer_support','rule_admin','subscription_admin','admin','super_admin'";
-  if (!cols.includes('role')) {
-    db.exec(`ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'user' CHECK (role IN (${roleAllowed}))`);
-  } else {
-    // Recreate users table to update role CHECK constraint (SQLite cannot ALTER CHECK)
-    const current = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='users'").get().sql;
-    if (!current.includes('verification_officer') || !current.includes('customer_support') || !current.includes('rule_admin')) {
-      db.exec(`
-        PRAGMA foreign_keys = OFF;
-        CREATE TABLE users_new (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          name TEXT NOT NULL,
-          phone TEXT NOT NULL UNIQUE,
-          email TEXT,
-          gender TEXT NOT NULL CHECK (gender IN ('male','female')),
-          status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','active','suspended')),
-          role TEXT NOT NULL DEFAULT 'user' CHECK (role IN (${roleAllowed})),
-          trust_level INTEGER NOT NULL DEFAULT 1,
-          push_token TEXT,
-          email_verified_at TEXT,
-          phone_verified_at TEXT,
-          verified_at TEXT,
-          created_at TEXT NOT NULL DEFAULT (datetime('now')),
-          deleted_at TEXT
-        );
-        INSERT INTO users_new SELECT id, name, phone, email, gender, status, role, trust_level, push_token, email_verified_at, phone_verified_at, verified_at, created_at, deleted_at FROM users;
-        DROP TABLE users;
-        ALTER TABLE users_new RENAME TO users;
-        PRAGMA foreign_keys = ON;
-      `);
+  const photosCols = [
+    ['review_status', `VARCHAR(16) NOT NULL DEFAULT 'approved' CHECK (review_status IN ('approved','pending','rejected'))`],
+    ['reviewed_by', 'INT UNSIGNED'],
+    ['reviewed_at', 'DATETIME'],
+    ['review_reason', 'TEXT'],
+  ];
+  for (const [col, ddl] of photosCols) {
+    if (!(await columnExists('user_photos', col))) {
+      await db.exec(`ALTER TABLE user_photos ADD COLUMN ${col} ${ddl}`);
     }
   }
 }
-migrate();
 
 // خطط افتراضية — قابلة للتعديل من لوحة الإدارة (Wasla_17)
-function seedPlans() {
+async function seedPlans() {
   const plans = [
     { code: 'intro', name: 'Introductory offer', duration_months: 1, price_egp: 0, regular_price_egp: 199, features: JSON.stringify(['unlimited_likes', 'unlimited_messages', 'who_liked_you', 'share_contact']) },
     { code: 'monthly', name: 'Monthly', duration_months: 1, price_egp: 299, regular_price_egp: 599, features: JSON.stringify(['unlimited_likes', 'unlimited_messages', 'who_liked_you', 'share_contact']) },
     { code: 'quarterly', name: 'Quarterly', duration_months: 3, price_egp: 499, regular_price_egp: 999, features: JSON.stringify(['unlimited_likes', 'unlimited_messages', 'who_liked_you', 'share_contact']) },
   ];
-  const insert = db.prepare(`INSERT OR IGNORE INTO plans (code, name, duration_months, price_egp, regular_price_egp, features) VALUES (?, ?, ?, ?, ?, ?)`);
-  for (const p of plans) insert.run(p.code, p.name, p.duration_months, p.price_egp, p.regular_price_egp, p.features);
+  for (const p of plans) {
+    await db
+      .prepare(`INSERT IGNORE INTO plans (code, name, duration_months, price_egp, regular_price_egp, features) VALUES (?, ?, ?, ?, ?, ?)`)
+      .run(p.code, p.name, p.duration_months, p.price_egp, p.regular_price_egp, p.features);
+  }
 }
-seedPlans();
 
 // مصفوفة الأدوار والصلاحيات (Wasla_25)
-function seedRolePermissions() {
-  // resource.action
+async function seedRolePermissions() {
   const matrix = [
     { role: 'viewer', perms: [
       ['dashboard','view'], ['queues','view'], ['audit','view'],
@@ -550,20 +600,24 @@ function seedRolePermissions() {
       ['audit','view'],
     ]},
   ];
-  const insert = db.prepare(`INSERT OR IGNORE INTO role_permissions (role, resource, action) VALUES (?, ?, ?)`);
   for (const { role, perms } of matrix) {
-    for (const [resource, action] of perms) insert.run(role, resource, action);
+    for (const [resource, action] of perms) {
+      await db
+        .prepare(`INSERT IGNORE INTO role_permissions (role, resource, action) VALUES (?, ?, ?)`)
+        .run(role, resource, action);
+    }
   }
 }
-seedRolePermissions();
 
-// Seed default workflows and rules after modules are loaded (avoid top-level import cycle)
-import('./workflows.js').then(({ seedDefaultWorkflows }) => seedDefaultWorkflows()).catch(() => {});
-import('./rules.js').then(({ createRule, listRules }) => {
-  const existing = listRules({ eventType: 'MessageSent' });
+// Seed default workflows and rules after modules are loaded (avoid import cycle)
+async function seedDynamic() {
+  const { seedDefaultWorkflows } = await import('./workflows.js');
+  await seedDefaultWorkflows();
+
+  const { createRule, listRules } = await import('./rules.js');
+  const existing = await listRules({ eventType: 'MessageSent' });
   if (!existing.length) {
-    // Sample rule — inactive by default so it does not break the app out of the box
-    createRule({
+    await createRule({
       name: 'Require selfie before messaging',
       description: 'Users without selfie_done cannot send messages',
       eventType: 'MessageSent',
@@ -574,7 +628,18 @@ import('./rules.js').then(({ createRule, listRules }) => {
       userMessage: 'يجب إكمال التحقق بالسيلفي قبل إرسال الرسائل',
     });
   }
-}).catch(() => {});
+}
+
+// تهيئة قاعدة البيانات: الإنشاء + الترحيل + البذر
+export async function initDb() {
+  for (const stmt of SCHEMA) {
+    await db.exec(stmt);
+  }
+  await migrate();
+  await seedPlans();
+  await seedRolePermissions();
+  await seedDynamic();
+}
 
 export function nowIso() {
   return new Date().toISOString().replace('T', ' ').slice(0, 19);
