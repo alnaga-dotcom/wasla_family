@@ -18,7 +18,8 @@ export async function getPublishedDefinition(key) {
 }
 
 export async function listDefinitions() {
-  return db.prepare('SELECT * FROM workflow_definitions ORDER BY wf_key, version DESC').all();
+  const rows = await db.prepare('SELECT * FROM workflow_definitions ORDER BY wf_key, version DESC').all();
+  return rows.map(({ wf_key, ...rest }) => ({ ...rest, key: wf_key }));
 }
 
 export async function startInstance(definitionKey, entityType, entityId, context = {}, initialState = null) {

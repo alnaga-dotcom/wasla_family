@@ -127,7 +127,7 @@ export function checkField(userId, fieldKey, value) {
   return checkText(userId, 'profile_field', value, { field_key: fieldKey, item_id: `profile:${userId}:${fieldKey}` });
 }
 
-export function checkMessage(userId, text, messageId) {
+export async function checkMessage(userId, text, messageId) {
   return checkText(userId, 'message', text, { item_id: String(messageId || ''), item_type: 'message' });
 }
 

@@ -99,7 +99,7 @@ router.post('/conversations/:id/messages', authRequired, emailVerifiedRequired, 
   }
 
   // Content moderation for messages (Wasla_15)
-  const mod = checkMessage(me, text, null);
+  const mod = await checkMessage(me, text, null);
   if (!mod.allowed) {
     return apiError(res, 422, 'MODERATION_REJECT', 'لا يُسمح بمشاركة وسائل تواصل أو روابط أو بيانات اتصال داخل الرسائل. الرجاء إعادة الصياغة.', 'text', { violations: mod.violations });
   }

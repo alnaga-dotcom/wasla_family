@@ -21,7 +21,7 @@ async function saveProfileField(userId, fieldKey, value) {
   if (!check.ok) return;
   const sensitive = fieldKey === 'health' ? 1 : 0;
   await db.prepare(
-    `INSERT INTO profile_fields (user_id, field_key, value, domain, sensitive, updated_at)
+    `INSERT INTO profile_fields (user_id, field_key, value, domain, \`sensitive\`, updated_at)
      VALUES (?, ?, ?, ?, ?, ?)
      ON DUPLICATE KEY UPDATE value = VALUES(value), updated_at = VALUES(updated_at)`
   ).run(userId, fieldKey, check.value, 'registration', sensitive, nowIso());

@@ -76,7 +76,7 @@ router.patch('/me', ah(async (req, res) => {
     }
     const sensitive = spec.sensitive ? 1 : 0;
     await db.prepare(
-      `INSERT INTO profile_fields (user_id, field_key, value, domain, sensitive, updated_at)
+      `INSERT INTO profile_fields (user_id, field_key, value, domain, \`sensitive\`, updated_at)
        VALUES (?, ?, ?, ?, ?, ?)
        ON DUPLICATE KEY UPDATE value = VALUES(value), updated_at = VALUES(updated_at)`
     ).run(req.userId, field_key, check.value, spec.domain, sensitive, nowIso());

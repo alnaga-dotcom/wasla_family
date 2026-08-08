@@ -193,7 +193,7 @@ export function photoUrl(photo) {
 export async function markProfilePhotoDone(userId) {
   const spec = { domain: 'Verification', tier: 1, weight: 10, type: 'flag' };
   await db.prepare(
-    `INSERT INTO profile_fields (user_id, field_key, value, domain, sensitive, updated_at)
+    `INSERT INTO profile_fields (user_id, field_key, value, domain, \`sensitive\`, updated_at)
      VALUES (?, 'photo_done', '1', ?, 0, ?)
      ON DUPLICATE KEY UPDATE value = VALUES(value), updated_at = VALUES(updated_at)`
   ).run(userId, spec.domain, new Date().toISOString().slice(0, 19));
@@ -202,7 +202,7 @@ export async function markProfilePhotoDone(userId) {
 export async function markSelfieDone(userId) {
   const spec = { domain: 'Verification', tier: 1, weight: 15, type: 'flag' };
   await db.prepare(
-    `INSERT INTO profile_fields (user_id, field_key, value, domain, sensitive, updated_at)
+    `INSERT INTO profile_fields (user_id, field_key, value, domain, \`sensitive\`, updated_at)
      VALUES (?, 'selfie_done', '1', ?, 0, ?)
      ON DUPLICATE KEY UPDATE value = VALUES(value), updated_at = VALUES(updated_at)`
   ).run(userId, spec.domain, new Date().toISOString().slice(0, 19));

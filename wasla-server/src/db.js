@@ -111,7 +111,7 @@ const SCHEMA = [
     field_key VARCHAR(100) NOT NULL,
     value TEXT NOT NULL,
     domain VARCHAR(32) NOT NULL,
-    sensitive INT NOT NULL DEFAULT 0,
+    \`sensitive\` INT NOT NULL DEFAULT 0,
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (user_id, field_key),
     KEY idx_pf_domain (domain)
@@ -395,7 +395,7 @@ const SCHEMA = [
     priority INT NOT NULL DEFAULT 0,
     status VARCHAR(16) NOT NULL DEFAULT 'active' CHECK (status IN ('active','inactive','draft')),
     user_message TEXT,
-    sensitive INT NOT NULL DEFAULT 0,
+    \`sensitive\` INT NOT NULL DEFAULT 0,
     version INT NOT NULL DEFAULT 1,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id),

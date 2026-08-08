@@ -65,7 +65,7 @@ export async function evaluateRules(eventType, context) {
 
 export async function createRule({ name, description, eventType, conditions, actions, priority = 0, status = 'active', userMessage, sensitive = false }) {
   const r = await db.prepare(
-    `INSERT INTO rules (name, description, event_type, conditions, actions, priority, status, user_message, sensitive)
+    `INSERT INTO rules (name, description, event_type, conditions, actions, priority, status, user_message, \`sensitive\`)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(name, description || null, eventType, JSON.stringify(conditions), JSON.stringify(actions), priority, status, userMessage || null, sensitive ? 1 : 0);
   return Number(r.lastInsertRowid);
@@ -79,7 +79,7 @@ export async function updateRule(id, updates) {
       sets.push(`${k} = ?`);
       params.push(JSON.stringify(v));
     } else if (k === 'sensitive') {
-      sets.push(`${k} = ?`);
+      sets.push('`sensitive` = ?');
       params.push(v ? 1 : 0);
     } else {
       sets.push(`${k} = ?`);
