@@ -11,7 +11,8 @@ async function call(path, method, body, token, adminKey) {
 }
 
 async function newUser(name, phone, gender = 'male') {
-  const reg = await call('/api/auth/register', 'POST', { name, phone, gender });
+  const email = 'tester' + String(Math.floor(100000 + Math.random() * 899999)) + '@example.com';
+  const reg = await call('/api/auth/register', 'POST', { name, phone, gender, email });
   if (reg.ok) return (await call('/api/auth/otp/verify', 'POST', { phone, code: reg.data.dev.otp })).data;
   if (reg.data.code === 'ALREADY_REGISTERED') {
     const login = await call('/api/auth/login', 'POST', { phone });
@@ -29,14 +30,14 @@ async function patch(token, key, value) {
 const assert = (cond, msg) => { if (!cond) { console.error('FAIL: ' + msg); process.exit(1); } console.log('ok: ' + msg); };
 
 const viewer = await newUser('مكتشف', '010' + String(Math.floor(10000000 + Math.random() * 89999999)));
-await patch(viewer.token, 'age', '30');
+await patch(viewer.token, 'birth_year', '1996');
 await patch(viewer.token, 'city', 'القاهرة');
 await patch(viewer.token, 'religiosity', 'ملتزم');
 await patch(viewer.token, 'selfie_done', '1');
 
 // High-score candidate: same city, age close, selfie, photo, trust L2
 const high = await newUser('مرشح ممتاز', '010' + String(Math.floor(10000000 + Math.random() * 89999999)), 'female');
-await patch(high.token, 'age', '29');
+await patch(high.token, 'birth_year', '1997');
 await patch(high.token, 'city', 'القاهرة');
 await patch(high.token, 'religiosity', 'ملتزم');
 await patch(high.token, 'selfie_done', '1');
@@ -46,7 +47,7 @@ await patch(high.token, 'lifestyle', 'هادئ');
 
 // Lower-score candidate: same city but older and different religiosity
 const low = await newUser('مرشح ضعيف', '010' + String(Math.floor(10000000 + Math.random() * 89999999)), 'female');
-await patch(low.token, 'age', '45');
+await patch(low.token, 'birth_year', '1981');
 await patch(low.token, 'city', 'القاهرة');
 await patch(low.token, 'religiosity', 'مرن');
 await patch(low.token, 'profession', 'طب');
@@ -54,7 +55,7 @@ await patch(low.token, 'selfie_done', '1');
 await patch(low.token, 'photo_done', '1');
 
 // Give candidates enough fields to score near the top of a populated test DB
-await patch(high.token, 'profession', 'تقنية');
+await patch(high.token, 'profession', 'تقنية معلومات');
 await patch(low.token, 'profession', 'طب');
 
 const disc = await call('/api/discovery/recommendations?limit=500', 'GET', null, viewer.token);

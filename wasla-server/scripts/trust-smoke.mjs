@@ -13,7 +13,8 @@ async function call(path, method, body, token) {
 
 async function newUser() {
   const phone = '01' + String(crypto.randomInt(100000000, 999999999));
-  const reg = await call('/api/auth/register', 'POST', { name: 'ثقة', phone, gender: 'male' });
+  const email = 'tester' + String(Math.floor(100000 + Math.random() * 899999)) + '@example.com';
+  const reg = await call('/api/auth/register', 'POST', { name: 'ثقة', phone, gender: 'male', email });
   if (!reg.ok) throw new Error('register failed: ' + JSON.stringify(reg.data));
   const ver = await call('/api/auth/otp/verify', 'POST', { phone, code: reg.data.dev.otp });
   return { token: ver.data.token, userId: ver.data.user.id };

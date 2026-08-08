@@ -17,7 +17,7 @@ assert(cfg.apiBase === API, 'config.json points to local API by default');
 
 // Register via API and load profile through app-referenced API (sanity)
 const phone = '010' + String(Math.floor(10000000 + Math.random() * 89999999));
-const reg = await fetch(API + '/api/auth/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: 'AppTester', gender: 'male', phone }) });
+const reg = await fetch(API + '/api/auth/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: 'AppTester', gender: 'male', phone, email: 'tester' + String(Math.floor(100000 + Math.random() * 899999)) + '@example.com' }) });
 const regData = await reg.json();
 assert(reg.ok && regData.dev?.otp, 'server registration works for app flow');
 

@@ -13,7 +13,8 @@ async function call(path, method, body, token) {
 
 async function newUser(name, gender) {
   const phone = '01' + String(crypto.randomInt(100000000, 999999999));
-  const reg = await call('/api/auth/register', 'POST', { name, phone, gender });
+  const email = 'tester' + String(Math.floor(100000 + Math.random() * 899999)) + '@example.com';
+  const reg = await call('/api/auth/register', 'POST', { name, phone, gender, email });
   if (!reg.ok) throw new Error('register failed: ' + JSON.stringify(reg.data));
   const ver = await call('/api/auth/otp/verify', 'POST', { phone, code: reg.data.dev.otp });
   return { token: ver.data.token, id: ver.data.user.id };
@@ -28,7 +29,7 @@ async function patch(token, key, value) {
 
 const a = await newUser('ياسمين', 'female');
 const b = await newUser('فاطمة', 'female');
-await patch(b.token, 'age', '29');
+await patch(b.token, 'birth_year', '1997');
 await patch(b.token, 'city', 'الجيزة');
 await patch(b.token, 'profession', 'تعليم');
 await patch(b.token, 'education', 'ماجستير');

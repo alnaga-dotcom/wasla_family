@@ -11,7 +11,8 @@ async function call(path, method, body, token, adminKey) {
 }
 
 async function newUser(name, phone, gender = 'male') {
-  const reg = await call('/api/auth/register', 'POST', { name, phone, gender });
+  const email = 'tester' + String(Math.floor(100000 + Math.random() * 899999)) + '@example.com';
+  const reg = await call('/api/auth/register', 'POST', { name, phone, gender, email });
   if (reg.ok) return (await call('/api/auth/otp/verify', 'POST', { phone, code: reg.data.dev.otp })).data;
   if (reg.data.code === 'ALREADY_REGISTERED') {
     const login = await call('/api/auth/login', 'POST', { phone });
@@ -34,7 +35,7 @@ const a = await newUser('عمرو', '010' + String(Math.floor(10000000 + Math.ra
 const b = await newUser('مريم', '010' + String(Math.floor(10000000 + Math.random() * 89999999)), 'female');
 
 const shared = {
-  age: 30, city: 'القاهرة', nationality: 'مصري', profession: 'تقنية', education: 'بكالوريوس',
+  birth_year: 1996, city: 'القاهرة', nationality: 'مصري', profession: 'تقنية معلومات', education: 'بكالوريوس',
   religiosity: 'ملتزم', lifestyle: 'هادئ', height: 170, selfie_done: 1, photo_done: 1,
 };
 await setProfile(a.token, shared);
@@ -49,7 +50,7 @@ assert(score.data.reasons.includes('نفس المدينة'), 'reason includes sa
 // C with different fields
 const c = await newUser('سارة', '010' + String(Math.floor(10000000 + Math.random() * 89999999)), 'female');
 await setProfile(c.token, {
-  age: 45, city: 'الإسكندرية', nationality: 'سعودي', profession: 'طب', education: 'دكتوراه',
+  birth_year: 1981, city: 'الإسكندرية', nationality: 'سعودي', profession: 'طب', education: 'دكتوراه',
   religiosity: 'مرن', lifestyle: 'اجتماعي', height: 160, selfie_done: 1, photo_done: 1,
 });
 

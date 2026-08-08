@@ -27,7 +27,7 @@ const cors = await fetch(API + '/api/health', {
 assert(cors.headers.get('access-control-allow-origin')?.includes('8081'), 'CORS allows dev origin');
 
 // JSON size limit: send a 20MB body
-const big = JSON.stringify({ x: 'a'.repeat(25 * 1024 * 1024) });
+const big = JSON.stringify({ x: 'a'.repeat(25 * 1024 * 1024), email: 'tester' + String(Math.floor(100000 + Math.random() * 899999)) + '@example.com' });
 const bigRes = await fetch(API + '/api/auth/register', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },

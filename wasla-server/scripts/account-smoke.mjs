@@ -14,7 +14,8 @@ async function call(path, method, body, token) {
 const assert = (cond, msg) => { if (!cond) { console.error('FAIL: ' + msg); process.exit(1); } console.log('ok: ' + msg); };
 
 async function register(phone) {
-  const reg = await call('/api/auth/register', 'POST', { name: 'حساب اختبار', phone, gender: 'male' });
+  const email = 'tester' + String(Math.floor(100000 + Math.random() * 899999)) + '@example.com';
+  const reg = await call('/api/auth/register', 'POST', { name: 'حساب اختبار', phone, gender: 'male', email });
   if (!reg.ok) throw new Error('register failed: ' + JSON.stringify(reg.data));
   const ver = await call('/api/auth/otp/verify', 'POST', { phone, code: reg.data.dev.otp });
   if (!ver.ok) throw new Error('verify failed: ' + JSON.stringify(ver.data));
@@ -37,7 +38,7 @@ assert(intl.userId > 0, 'تسجيل بهاتف دولي +971 يعمل');
 // ── هاتف محلي: 01xxxxxxxxx
 const localPhone = '01' + String(crypto.randomInt(100000000, 999999999));
 const me = await register(localPhone);
-for (const [k, v] of [['age', '28'], ['city', 'القاهرة'], ['profession', 'طب'], ['education', 'بكالوريوس'], ['religiosity', 'ملتزم'], ['lifestyle', 'هادئ'], ['photo_done', '1'], ['selfie_done', '1']]) {
+for (const [k, v] of [['birth_year', '1998'], ['city', 'القاهرة'], ['profession', 'طب'], ['education', 'بكالوريوس'], ['religiosity', 'ملتزم'], ['lifestyle', 'هادئ'], ['photo_done', '1'], ['selfie_done', '1']]) {
   await call('/api/profile/me', 'PATCH', { field_key: k, value: v }, me.token);
 }
 

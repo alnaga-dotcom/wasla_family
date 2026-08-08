@@ -20,7 +20,8 @@ async function session(phone) {
 const assert = (cond, msg) => { if (!cond) { console.error('FAIL: ' + msg); process.exit(1); } console.log('ok: ' + msg); };
 
 async function newUser(name, phone) {
-  const reg = await call('/api/auth/register', 'POST', { name, phone, gender: 'female' });
+  const email = 'tester' + String(Math.floor(100000 + Math.random() * 899999)) + '@example.com';
+  const reg = await call('/api/auth/register', 'POST', { name, phone, gender: 'female', email });
   if (reg.ok) return (await call('/api/auth/otp/verify', 'POST', { phone, code: reg.data.dev.otp })).data;
   if (reg.data.code === 'ALREADY_REGISTERED') return session(phone);
   throw new Error('register failed: ' + JSON.stringify(reg.data));
@@ -37,7 +38,8 @@ await call(`/api/matches/${idA}/like`, 'POST', { like: true }, b.token);
 
 // non-mutual guard: create a third user with no likes and try to message
 const cPhone = randPhone();
-const reg = await call('/api/auth/register', 'POST', { name: 'غريب', phone: cPhone, gender: 'male' });
+const cEmail = 'tester' + String(Math.floor(100000 + Math.random() * 899999)) + '@example.com';
+const reg = await call('/api/auth/register', 'POST', { name: 'غريب', phone: cPhone, gender: 'male', email: cEmail });
 const c = reg.ok
   ? (await call('/api/auth/otp/verify', 'POST', { phone: cPhone, code: reg.data.dev.otp })).data
   : await session(cPhone);

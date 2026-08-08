@@ -13,7 +13,8 @@ async function call(path, method, body, token) {
 
 async function newUser(name, gender) {
   const phone = '01' + String(crypto.randomInt(100000000, 999999999));
-  const reg = await call('/api/auth/register', 'POST', { name, phone, gender });
+  const email = 'tester' + String(Math.floor(100000 + Math.random() * 899999)) + '@example.com';
+  const reg = await call('/api/auth/register', 'POST', { name, phone, gender, email });
   if (!reg.ok) throw new Error('register failed: ' + JSON.stringify(reg.data));
   const ver = await call('/api/auth/otp/verify', 'POST', { phone, code: reg.data.dev.otp });
   return { token: ver.data.token, id: ver.data.user.id };
@@ -30,7 +31,7 @@ for (const [k, v] of [['city', 'القاهرة'], ['religiosity', 'ملتزم'],
   await call('/api/profile/me', 'PATCH', { field_key: k, value: v }, b.token);
 }
 
-for (const [k, v] of [['age', '26'], ['city', 'القاهرة'], ['profession', 'تعليم'], ['education', 'بكالوريوس'], ['religiosity', 'ملتزم'], ['lifestyle', 'هادئ'], ['photo_done', '1'], ['selfie_done', '1']]) {
+for (const [k, v] of [['birth_year', '2000'], ['city', 'القاهرة'], ['profession', 'تعليم'], ['education', 'بكالوريوس'], ['religiosity', 'ملتزم'], ['lifestyle', 'هادئ'], ['photo_done', '1'], ['selfie_done', '1']]) {
   await call('/api/profile/me', 'PATCH', { field_key: k, value: v }, a.token);
 }
 

@@ -4,10 +4,11 @@ const assert = (cond, msg) => { if (!cond) { console.error('FAIL: ' + msg); proc
 
 async function register(name, gender) {
   const phone = '015' + String(Math.floor(10000000 + Math.random() * 89999999));
+  const email = 'tester' + String(Math.floor(100000 + Math.random() * 899999)) + '@example.com';
   const reg = await fetch(API + '/api/auth/register', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, gender, phone }),
+    body: JSON.stringify({ name, gender, phone, email }),
   });
   const data = await reg.json();
   const ver = await fetch(API + '/api/auth/otp/verify', {

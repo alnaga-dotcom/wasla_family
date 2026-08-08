@@ -12,7 +12,8 @@ async function call(path, method, body, token) {
 
 async function register() {
   const phone = '010' + String(Math.floor(10000000 + Math.random() * 89999999));
-  const reg = await call('/api/auth/register', 'POST', { name: 'صورة', gender: 'male', phone });
+  const email = 'tester' + String(Math.floor(100000 + Math.random() * 899999)) + '@example.com';
+  const reg = await call('/api/auth/register', 'POST', { name: 'صورة', gender: 'male', phone, email });
   const ver = await call('/api/auth/otp/verify', 'POST', { phone, code: reg.data.dev.otp });
   return ver.data;
 }

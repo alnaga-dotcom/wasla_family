@@ -11,7 +11,8 @@ async function call(path, method, body, token) {
 }
 
 async function newUser(name, phone) {
-  const reg = await call('/api/auth/register', 'POST', { name, phone, gender: 'male' });
+  const email = 'tester' + String(Math.floor(100000 + Math.random() * 899999)) + '@example.com';
+  const reg = await call('/api/auth/register', 'POST', { name, phone, gender: 'male', email });
   if (reg.ok) return (await call('/api/auth/otp/verify', 'POST', { phone, code: reg.data.dev.otp })).data;
   if (reg.data.code === 'ALREADY_REGISTERED') {
     const login = await call('/api/auth/login', 'POST', { phone });

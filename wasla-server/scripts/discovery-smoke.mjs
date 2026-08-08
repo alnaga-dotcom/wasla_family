@@ -16,7 +16,8 @@ async function call(path, method, body, token) {
 }
 
 async function newUser(name, phone) {
-  const reg = await call('/api/auth/register', 'POST', { name, phone, gender: 'male' });
+  const email = 'tester' + String(Math.floor(100000 + Math.random() * 899999)) + '@example.com';
+  const reg = await call('/api/auth/register', 'POST', { name, phone, gender: 'male', email });
   let code;
   if (reg.ok) code = reg.data.dev.otp;
   else if (reg.data.code === 'ALREADY_REGISTERED') {
@@ -41,16 +42,22 @@ const u1 = await newUser('أحمد', p1);
 const u2 = await newUser('كريم', p2);
 assert(true, `registered u1=${u1.user.id} u2=${u2.user.id}`);
 
-await patch(u1.token, 'age', '30');
+await patch(u1.token, 'birth_year', '1996');
 await patch(u1.token, 'city', 'القاهرة');
 await patch(u1.token, 'profession', 'هندسة');
+await patch(u1.token, 'education', 'بكالوريوس');
+await patch(u1.token, 'religiosity', 'ملتزم');
+await patch(u1.token, 'lifestyle', 'هادئ');
 const compFinal = await patch(u1.token, 'photo_done', 1);
 assert(compFinal.completion.pct >= 40, `u1 completion=${compFinal.completion.pct}%`);
 
 // u2 gets a profile so it ranks in the feed regardless of accumulated test users
-await patch(u2.token, 'age', '31');
+await patch(u2.token, 'birth_year', '1995');
 await patch(u2.token, 'city', 'القاهرة');
-await patch(u2.token, 'profession', 'تجارة');
+await patch(u2.token, 'profession', 'هندسة');
+await patch(u2.token, 'education', 'بكالوريوس');
+await patch(u2.token, 'religiosity', 'ملتزم');
+await patch(u2.token, 'lifestyle', 'هادئ');
 await patch(u2.token, 'photo_done', 1);
 await patch(u2.token, 'selfie_done', 1);
 

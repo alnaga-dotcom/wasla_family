@@ -1,5 +1,5 @@
 import { db } from './db.js';
-import { getMatchScore } from './matching.js';
+import { getMatchScore, getThreshold } from './matching.js';
 import { publish } from './events.js';
 import { trustLevel as computeTrustLevel } from './trust.js';
 
@@ -102,6 +102,7 @@ export function getRecommendations(userId, limit = 20) {
   ).all(userId, userId).forEach((r) => blocked.add(r.blocked_id));
 
   const filtered = candidates.filter((c) => !blocked.has(c.id));
+  const threshold = getThreshold();
   const scored = filtered.map((c, idx) => {
     const targetId = c.id;
     const match = getMatchScore(userId, targetId);
@@ -111,6 +112,7 @@ export function getRecommendations(userId, limit = 20) {
     const histPenalty = historyPenalty(userId, targetId);
 
     if (targetTrust < config.min_trust_level) return null;
+    if (match.score < threshold) return null;
 
     const compatibilityNorm = match.score / 100;
     const trustNorm = Math.min(1, targetTrust / 3);

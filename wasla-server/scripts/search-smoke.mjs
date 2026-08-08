@@ -13,7 +13,8 @@ async function call(path, method, body, token) {
 
 async function newUser(name, gender) {
   const phone = '01' + String(crypto.randomInt(100000000, 999999999));
-  const reg = await call('/api/auth/register', 'POST', { name, phone, gender });
+  const email = 'tester' + String(Math.floor(100000 + Math.random() * 899999)) + '@example.com';
+  const reg = await call('/api/auth/register', 'POST', { name, phone, gender, email });
   if (!reg.ok) throw new Error('register failed: ' + JSON.stringify(reg.data));
   const ver = await call('/api/auth/otp/verify', 'POST', { phone, code: reg.data.dev.otp });
   return { token: ver.data.token, id: ver.data.user.id };
@@ -34,7 +35,7 @@ await patch(t.token, 'education', 'بكالوريوس');
 await patch(t.token, 'religiosity', 'ملتزم');
 await patch(t.token, 'profession', 'هندسة');
 await patch(t.token, 'lifestyle', 'هادئ');
-await patch(t.token, 'age', '28');
+await patch(t.token, 'birth_year', '1998');
 await patch(t.token, 'selfie_done', '1');
 await patch(me.token, 'city', 'القاهرة');
 await patch(me.token, 'education', 'بكالوريوس');
@@ -42,7 +43,7 @@ await patch(me.token, 'selfie_done', '1');
 
 // filters endpoint
 const filters = await call('/api/search/filters', 'GET', null, me.token);
-assert(filters.ok && filters.data.filters.city && filters.data.filters.education, 'search/filters returns searchable options');
+assert(filters.ok && filters.data.filters.education && filters.data.filters.religiosity, 'search/filters returns searchable options');
 assert(!filters.data.filters.health, 'health is NOT searchable');
 
 // find tarek by unique name

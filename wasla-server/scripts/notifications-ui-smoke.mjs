@@ -13,7 +13,8 @@ async function apiCall(path, method = 'GET', body = null, token = null) {
 
 async function register() {
   const phone = '010' + String(Math.floor(10000000 + Math.random() * 89999999));
-  const reg = await apiCall('/api/auth/register', 'POST', { name: 'NotifTester', gender: 'female', phone });
+  const email = 'tester' + String(Math.floor(100000 + Math.random() * 899999)) + '@example.com';
+  const reg = await apiCall('/api/auth/register', 'POST', { name: 'NotifTester', gender: 'female', phone, email });
   const ver = await apiCall('/api/auth/otp/verify', 'POST', { phone, code: reg.data.dev.otp });
   return ver.data;
 }

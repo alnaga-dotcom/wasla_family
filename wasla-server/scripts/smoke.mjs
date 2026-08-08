@@ -2,6 +2,7 @@
 // Run: node scripts/smoke.mjs   (server must be running on port 4000)
 const BASE = process.env.WASLA_BASE || 'http://127.0.0.1:4000';
 const phone = '011' + String(Math.floor(10000000 + Math.random() * 89999999));
+const email = 'tester' + String(Math.floor(100000 + Math.random() * 899999)) + '@example.com';
 
 async function call(method, path, body, token) {
   const res = await fetch(BASE + path, {
@@ -38,7 +39,7 @@ async function step(label, fn, expectedStatus) {
 
 let reg = null;
 await step('1. Register new phone', () => {
-  return call('POST', '/api/auth/register', { name: 'أحمد التجريبي', phone, gender: 'male' }).then((r) => { reg = r; return r; });
+  return call('POST', '/api/auth/register', { name: 'أحمد التجريبي', phone, email, gender: 'male' }).then((r) => { reg = r; return r; });
 });
 
 const otp = reg && reg.json.dev ? reg.json.dev.otp : null;
@@ -55,7 +56,7 @@ if (!otp) {
     await step('4. GET /auth/me', () => call('GET', '/api/auth/me', null, token));
     await step('5. Profile completion 0%', () => call('GET', '/api/profile/completion', null, token));
     await step('6. Patch city', () => call('PATCH', '/api/profile/me', { field_key: 'city', value: 'القاهرة' }, token));
-    await step('7. Patch profession', () => call('PATCH', '/api/profile/me', { field_key: 'profession', value: 'تقنية' }, token));
+    await step('7. Patch profession', () => call('PATCH', '/api/profile/me', { field_key: 'profession', value: 'تقنية معلومات' }, token));
     await step('8. Patch selfie done', () => call('PATCH', '/api/profile/me', { field_key: 'selfie_done', value: 1 }, token));
     await step('9. Invalid age rejected', () => call('PATCH', '/api/profile/me', { field_key: 'age', value: 12 }, token), 422);
     await step('10. GET profile/me (final)', () => call('GET', '/api/profile/me', null, token));

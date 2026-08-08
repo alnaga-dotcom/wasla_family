@@ -15,7 +15,8 @@ async function apiCall(path, method = 'GET', body = null, token = null, useAdmin
 
 async function register(role = 'user') {
   const phone = '010' + String(Math.floor(10000000 + Math.random() * 89999999));
-  const reg = await apiCall('/api/auth/register', 'POST', { name: 'AdminTester', gender: 'male', phone });
+  const email = 'tester' + String(Math.floor(100000 + Math.random() * 899999)) + '@example.com';
+  const reg = await apiCall('/api/auth/register', 'POST', { name: 'AdminTester', gender: 'male', phone, email });
   const ver = await apiCall('/api/auth/otp/verify', 'POST', { phone, code: reg.data.dev.otp });
   if (role !== 'user') {
     await apiCall(`/admin/users/${ver.data.user.id}/role`, 'POST', { role, reason: 'test' }, null, true);
