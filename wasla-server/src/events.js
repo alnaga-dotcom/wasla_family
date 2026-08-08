@@ -43,7 +43,7 @@ export async function listEvents({ type, entityType, entityId, limit = 100 } = {
   if (entityType) { sql += ' AND entity_type = ?'; params.push(entityType); }
   if (entityId) { sql += ' AND entity_id = ?'; params.push(entityId); }
   sql += ' ORDER BY id DESC LIMIT ?';
-  params.push(limit);
+  params.push(String(limit));
   const rows = await db.prepare(sql).all(...params);
   return rows.map((r) => ({ ...r, payload: JSON.parse(r.payload || '{}') }));
 }

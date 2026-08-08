@@ -157,7 +157,7 @@ export async function checkText(userId, itemType, text, meta = {}) {
 export async function getQueue(status = 'pending', limit = 200) {
   return db.prepare(
     `SELECT * FROM moderation_items WHERE status = ? ORDER BY risk_score DESC, id DESC LIMIT ?`
-  ).all(status, limit);
+  ).all(status, String(limit));
 }
 
 export async function resolveItem(itemId, action, actorId, actorRole, reason) {

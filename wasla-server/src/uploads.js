@@ -113,7 +113,7 @@ export async function getPendingPhotos(status = 'pending', limit = 200) {
      FROM user_photos p JOIN users u ON u.id = p.user_id
      WHERE p.review_status = ?
      ORDER BY p.id DESC LIMIT ?`
-  ).all(status, limit);
+  ).all(status, String(limit));
 }
 
 export async function approvePhoto(photoId, adminId) {

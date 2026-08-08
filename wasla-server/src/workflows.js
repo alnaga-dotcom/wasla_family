@@ -59,7 +59,7 @@ export async function listInstances({ definitionKey, state, entityType, limit = 
   if (state) { sql += ' AND wi.current_state = ?'; params.push(state); }
   if (entityType) { sql += ' AND wi.entity_type = ?'; params.push(entityType); }
   sql += ' ORDER BY wi.updated_at DESC LIMIT ?';
-  params.push(limit);
+  params.push(String(limit));
   return db.prepare(sql).all(...params);
 }
 

@@ -55,7 +55,7 @@ router.get('/search', authRequired, emailVerifiedRequired, ah(async (req, res) =
        ${where}
       ORDER BY u.id DESC
       LIMIT ? OFFSET ?`
-  ).all(...params, limit, (page - 1) * limit);
+  ).all(...params, String(limit), String((page - 1) * limit));
 
   const cards = await Promise.all(rows.map((r) => publicCard(r.id)));
   const items = cards.filter(Boolean).filter((card) => {

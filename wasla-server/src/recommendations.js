@@ -90,7 +90,7 @@ export async function getRecommendations(userId, limit = 20) {
        AND NOT EXISTS (SELECT 1 FROM match_actions a WHERE a.actor_id = u.id AND a.target_id = ? AND a.action = 'pass')
        AND NOT EXISTS (SELECT 1 FROM discovery_views v WHERE v.actor_id = ? AND v.target_id = u.id)
      ORDER BY u.id DESC LIMIT ?`
-  ).all(userId, userId, userId, userId, limit * 4);
+  ).all(userId, userId, userId, userId, String(limit * 4));
 
   const blocked = new Set();
   (await db.prepare(

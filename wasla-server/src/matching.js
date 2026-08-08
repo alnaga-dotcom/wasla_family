@@ -134,7 +134,7 @@ export async function rankForDiscovery(userId, limit = 20) {
        AND NOT EXISTS (SELECT 1 FROM discovery_views v WHERE v.actor_id = ? AND v.target_id = u.id)
      ORDER BY u.id DESC
      LIMIT ?`
-  ).all(userId, userId, userId, userId, limit * 3);
+  ).all(userId, userId, userId, userId, String(limit * 3));
 
   const scored = [];
   for (const r of rows) {
