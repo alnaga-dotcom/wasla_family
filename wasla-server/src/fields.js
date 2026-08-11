@@ -21,6 +21,15 @@ export const FIELD_SPECS = {
   photo_done:  { label: 'الصورة الشخصية',   domain: 'Verification', tier: 1, weight: 5,  type: 'flag' },
   selfie_done: { label: 'التحقق بالسيلفي',  domain: 'Verification', tier: 1, weight: 10, type: 'flag' },
   bio:         { label: 'نبذة عني',         domain: 'Personal',   tier: 2, weight: 10, type: 'text', maxLength: 500 },
+  marital_status: { label: 'حالتك الاجتماعية',  domain: 'Marital', tier: 2, weight: 10, type: 'select', values: ['أعزب', 'متزوج', 'مطلق', 'أرمل', 'أخبرك لاحقًا'] },
+  has_kids:    { label: 'هل لديك أطفال؟',   domain: 'Marital',   tier: 2, weight: 5,  type: 'select', values: ['نعم', 'لا', 'أخبرك لاحقًا'] },
+  kids_living: { label: 'أين يقيم أطفالك؟', domain: 'Marital',   tier: 2, weight: 0,  type: 'select', values: ['معي', 'مع الشريك السابق', 'غير منطبق', 'أخبرك لاحقًا'] },
+  want_kids:   { label: 'هل تخطط لإنجاب أطفال؟', domain: 'Marital', tier: 2, weight: 5, type: 'select', values: ['نعم', 'لا', 'أخبرك لاحقًا'] },
+  partner_marital_status: { label: 'أقبل الزواج من', domain: 'Marital', tier: 2, weight: 10, type: 'multiselect', values: ['أعزب/عزباء فقط', 'مطلق/مطلقة', 'أرمل/أرملة', 'أي حالة', 'أخبرك لاحقًا'] },
+  partner_has_kids: { label: 'أقبل أن يكون لشريكي أطفال', domain: 'Marital', tier: 2, weight: 5, type: 'select', values: ['نعم', 'لا', 'أخبرك لاحقًا'] },
+  partner_kids_living: { label: 'أين يقيم أطفال الشريك؟', domain: 'Marital', tier: 2, weight: 0, type: 'select', values: ['معه/معها', 'مع الشريك السابق', 'غير منطبق', 'أخبرك لاحقًا'] },
+  partner_want_kids: { label: 'هل تخطط لإنجاب أطفال مع شريكك؟', domain: 'Marital', tier: 2, weight: 5, type: 'select', values: ['نعم', 'لا', 'أخبرك لاحقًا'] },
+  marital_done: { label: 'اكتمل استبيان الحالة', domain: 'Marital', tier: 1, weight: 0, type: 'flag' },
 };
 
 export const CHECKLIST = [
@@ -71,6 +80,12 @@ export function isValidFieldValue(key, value) {
   if (spec.type === 'select') {
     if (!spec.values.includes(value)) return { ok: false, reason: 'invalid_choice' };
     return { ok: true, value };
+  }
+  if (spec.type === 'multiselect') {
+    const parts = String(value).split(',').map((s) => s.trim()).filter(Boolean);
+    if (!parts.length) return { ok: false, reason: 'empty_choice' };
+    if (parts.some((p) => !spec.values.includes(p))) return { ok: false, reason: 'invalid_choice' };
+    return { ok: true, value: parts.join(',') };
   }
   if (spec.type === 'text') {
     const s = String(value || '').trim();

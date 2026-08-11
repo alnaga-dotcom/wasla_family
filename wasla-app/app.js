@@ -270,7 +270,7 @@ function renderLogin() {
     try {
       const data = await api('/api/auth/login', 'POST', { phone });
       state.phone = phone;
-      renderVerify(data.dev?.otp, { mode: 'login', onSuccess: () => setPage('discovery') });
+      renderVerify(data.dev?.otp, { mode: 'login', onSuccess: runPostLogin });
     } catch (err) { showError(el('error'), err); }
   });
 }
@@ -492,6 +492,179 @@ function renderVerify(hint, opts = {}) {
   });
 }
 
+const MARITAL_SEL = {
+  marital_status: ['أعزب', 'متزوج', 'مطلق', 'أرمل', 'أخبرك لاحقًا'],
+  has_kids: ['نعم', 'لا', 'أخبرك لاحقًا'],
+  kids_living: ['معي', 'مع الشريك السابق', 'غير منطبق', 'أخبرك لاحقًا'],
+  want_kids: ['نعم', 'لا', 'أخبرك لاحقًا'],
+  partner_has_kids: ['نعم', 'لا', 'أخبرك لاحقًا'],
+  partner_kids_living: ['معه/معها', 'مع الشريك السابق', 'غير منطبق', 'أخبرك لاحقًا'],
+  partner_want_kids: ['نعم', 'لا', 'أخبرك لاحقًا'],
+};
+const MARITAL_PARTNER_MULTI = ['أعزب/عزباء فقط', 'مطلق/مطلقة', 'أرمل/أرملة', 'أي حالة', 'أخبرك لاحقًا'];
+
+function maritalSelectOptions(list, current) {
+  return list.map((o) => `<option value="${o}" ${o === current ? 'selected' : ''}>${o}</option>`).join('');
+}
+
+async function runPostLogin() {
+  try {
+    const me = await api('/api/profile/me');
+    const fields = me.fields || {};
+    if (!fields.marital_done) return renderMaritalOnboarding();
+  } catch (e) { /* continue to app */ }
+  setPage('discovery');
+}
+
+function renderMaritalOnboarding() {
+  const app = el('app');
+  app.innerHTML = `
+    <div class="auth-screen">
+      <header class="auth-hero auth-hero-compact">${brandHeader()}</header>
+      <div class="auth-body">
+        <div class="card auth-card">
+          <h1 class="auth-title">خطوة سريعة</h1>
+          <p class="auth-sub">أسئلة قصيرة تساعدنا على إيجاد التوافق الأنسب لك — يمكنك تأجيل أي سؤال.</p>
+
+          <h3 class="onboard-section-title">عني</h3>
+          <label>حالتك الاجتماعية</label>
+          <select id="marital_status">${maritalSelectOptions(MARITAL_SEL.marital_status)}</select>
+          <label>هل لديك أطفال؟</label>
+          <select id="has_kids">${maritalSelectOptions(MARITAL_SEL.has_kids)}</select>
+          <div id="kids_living_wrap">
+            <label>أين يقيم أطفالك؟</label>
+            <select id="kids_living">${maritalSelectOptions(MARITAL_SEL.kids_living)}</select>
+          </div>
+          <label>هل تخطط لإنجاب أطفال؟</label>
+          <select id="want_kids">${maritalSelectOptions(MARITAL_SEL.want_kids)}</select>
+
+          <h3 class="onboard-section-title">شريكي</h3>
+          <label>أقبل الزواج من</label>
+          <div id="partner_marital_status" style="margin-bottom:12px">
+            ${MARITAL_PARTNER_MULTI.map((o) => `<label class="onboard-check"><input type="checkbox" value="${o}" /> ${o}</label>`).join('')}
+          </div>
+          <label>أقبل أن يكون لشريكي أطفال</label>
+          <select id="partner_has_kids">${maritalSelectOptions(MARITAL_SEL.partner_has_kids)}</select>
+          <label>أين يقيم أطفال الشريك؟</label>
+          <select id="partner_kids_living">${maritalSelectOptions(MARITAL_SEL.partner_kids_living)}</select>
+          <label>هل تخطط لإنجاب أطفال مع شريكك؟</label>
+          <select id="partner_want_kids">${maritalSelectOptions(MARITAL_SEL.partner_want_kids)}</select>
+
+          <button class="btn-primary" id="maritalSave">حفظ ومتابعة</button>
+          <div id="error"></div>
+        </div>
+      </div>
+    </div>
+  `;
+  const wrap = el('kids_living_wrap');
+  const kidsSel = el('has_kids');
+  const syncKids = () => { if (wrap) wrap.style.display = kidsSel.value === 'لا' ? 'none' : ''; };
+  kidsSel.addEventListener('change', syncKids);
+  syncKids();
+  el('maritalSave').addEventListener('click', async () => {
+    const updates = [];
+    const pick = (key) => {
+      const v = el(key).value;
+      if (v && v !== 'أخبرك لاحقًا') updates.push({ field_key: key, value: v });
+    };
+    pick('marital_status');
+    pick('has_kids');
+    if (kidsSel.value !== 'لا') pick('kids_living');
+    pick('want_kids');
+    const checked = [...document.querySelectorAll('#partner_marital_status input:checked')].map((i) => i.value);
+    const real = [...new Set(checked)].filter((v) => v !== 'أخبرك لاحقًا');
+    if (real.length) updates.push({ field_key: 'partner_marital_status', value: real.join(',') });
+    pick('partner_has_kids');
+    pick('partner_kids_living');
+    pick('partner_want_kids');
+    updates.push({ field_key: 'marital_done', value: '1' });
+    const btn = el('maritalSave');
+    btn.disabled = true;
+    btn.textContent = 'جاري الحفظ...';
+    try {
+      await api('/api/profile/me', 'PATCH', { fields: updates });
+      renderAuthPrompt();
+    } catch (err) {
+      btn.disabled = false;
+      btn.textContent = 'حفظ ومتابعة';
+      showError(el('error'), err);
+    }
+  });
+}
+
+function renderAuthPrompt() {
+  const app = el('app');
+  app.innerHTML = `
+    <div class="auth-screen">
+      <header class="auth-hero auth-hero-compact">${brandHeader()}</header>
+      <div class="auth-body">
+        <div class="card auth-card">
+          <h1 class="auth-title">مستوى التوثيق</h1>
+          <p class="auth-sub">وثّق حسابك الآن برفع صورة حقيقية (سيلفي مع هويتك) لتحصل على شارة التوثيق وثقة أعلى من الأعضاء.</p>
+          <button class="btn-primary" id="authNow">توثيق الآن</button>
+          <button class="btn-ghost" id="authLater">لاحقًا</button>
+          <div id="error"></div>
+        </div>
+      </div>
+    </div>
+  `;
+  el('authNow').addEventListener('click', renderAuthNow);
+  el('authLater').addEventListener('click', () => setPage('discovery'));
+}
+
+function renderAuthNow() {
+  const app = el('app');
+  app.innerHTML = `
+    <div class="auth-screen">
+      <header class="auth-hero auth-hero-compact">${brandHeader()}</header>
+      <div class="auth-body">
+        <div class="card auth-card">
+          <h1 class="auth-title">التوثيق</h1>
+          <p class="auth-sub">ارفع صورة سيلفي مع بطاقة هويتك الشخصية، ثم اطلب مراجعة الإدارة.</p>
+          <label>سيلفي مع الهوية</label>
+          <input type="file" id="selfie-input" accept="image/png,image/jpeg" style="margin-bottom:8px" />
+          <button class="btn-ghost" id="selfie-upload">رفع الصورة</button>
+          <div id="selfie-error"></div>
+          <button class="btn-primary" id="requestVerification">طلب التوثيق</button>
+          <button class="btn-ghost" id="authDone">لاحقًا</button>
+          <div id="error"></div>
+        </div>
+      </div>
+    </div>
+  `;
+  el('selfie-upload').addEventListener('click', async () => {
+    const input = el('selfie-input');
+    if (!input.files[0]) return;
+    const fd = new FormData();
+    fd.append('photo', input.files[0]);
+    const btn = el('selfie-upload');
+    btn.disabled = true;
+    btn.textContent = 'جارٍ الرفع...';
+    try {
+      await apiUpload('/api/profile/selfie', fd);
+      el('selfie-error').innerHTML = `<div class="success-msg">تم رفع الصورة ✓</div>`;
+    } catch (err) {
+      el('selfie-error').innerHTML = `<div class="error">${err?.data?.message || err?.message || 'حدث خطأ'}</div>`;
+    }
+    btn.disabled = false;
+    btn.textContent = 'رفع الصورة';
+  });
+  el('requestVerification').addEventListener('click', async () => {
+    const btn = el('requestVerification');
+    btn.disabled = true;
+    btn.textContent = 'جارٍ الإرسال...';
+    try {
+      await api('/api/verification/request', 'POST', { type: 'id' });
+      el('error').innerHTML = `<div class="success-msg">تم إرسال طلب التوثيق — ستُراجع طلبك إداريًا ✓</div>`;
+    } catch (err) {
+      showError(el('error'), err);
+    }
+    btn.disabled = false;
+    btn.textContent = 'طلب التوثيق';
+  });
+  el('authDone').addEventListener('click', () => setPage('discovery'));
+}
+
 async function renderProfile() {
   const app = el('app');
   app.innerHTML = `<div class="card"><p>جاري التحميل...</p></div>`;
@@ -530,8 +703,8 @@ async function renderProfile() {
         ${fieldEditor('weight', 'الوزن (كجم)', 'number', fields.weight)}
         <p class="auth-sub">اكتب نبذة جيدة عن نفسك — تُظهر للجميع وتُحسّن توافقك</p>
         ${fieldEditor('bio', 'نبذة عني', 'textarea', fields.bio)}
+        <div id="profileError"></div>
         <button id="saveProfile">حفظ</button>
-        <div id="error"></div>
       </div>
     `;
     bindPhotoUploader('photo', '/api/profile/photo');
@@ -555,7 +728,7 @@ async function renderProfile() {
         if (input) updates.push({ field_key: key, value: String(input.value || '') });
       }
       const saveBtn = el('saveProfile');
-      const errBox = el('error');
+      const errBox = el('profileError');
       saveBtn.disabled = true;
       saveBtn.textContent = 'جاري الحفظ...';
       try {

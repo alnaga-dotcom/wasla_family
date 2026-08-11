@@ -64,6 +64,24 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
 .error { color: var(--danger); font-size: 14px; margin-top: 8px; }
 .error-field { color: var(--warning); font-size: 14px; margin-top: 8px; font-weight: 600; }
 .success-msg { color: var(--success); font-size: 14px; margin-top: 8px; font-weight: 600; }
+
+.onboard-section-title {
+  margin: 20px 0 4px;
+  color: var(--primary);
+  font-size: 16px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 6px;
+}
+.onboard-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0;
+  font-size: 15px;
+  color: var(--text);
+  font-weight: normal;
+}
+.onboard-check input { width: auto; margin: 0; }
 .brand-logo {
   display: block;
   text-align: center;
