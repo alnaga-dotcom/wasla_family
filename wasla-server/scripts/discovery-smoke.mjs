@@ -48,6 +48,14 @@ await patch(u1.token, 'profession', 'هندسة');
 await patch(u1.token, 'education', 'بكالوريوس');
 await patch(u1.token, 'religiosity', 'ملتزم');
 await patch(u1.token, 'lifestyle', 'هادئ');
+// marital questionnaire (app flow: first-login onboarding)
+await patch(u1.token, 'marital_status', 'أعزب');
+await patch(u1.token, 'has_kids', 'لا');
+await patch(u1.token, 'want_kids', 'نعم');
+await patch(u1.token, 'partner_marital_status', 'مطلق/مطلقة');
+await patch(u1.token, 'partner_has_kids', 'نعم');
+await patch(u1.token, 'partner_want_kids', 'لا');
+await patch(u1.token, 'marital_done', 1);
 const compFinal = await patch(u1.token, 'photo_done', 1);
 assert(compFinal.completion.pct >= 40, `u1 completion=${compFinal.completion.pct}%`);
 
@@ -58,6 +66,13 @@ await patch(u2.token, 'profession', 'هندسة');
 await patch(u2.token, 'education', 'بكالوريوس');
 await patch(u2.token, 'religiosity', 'ملتزم');
 await patch(u2.token, 'lifestyle', 'هادئ');
+await patch(u2.token, 'marital_status', 'أعزب');
+await patch(u2.token, 'has_kids', 'لا');
+await patch(u2.token, 'want_kids', 'نعم');
+await patch(u2.token, 'partner_marital_status', 'أعزب/عزباء فقط');
+await patch(u2.token, 'partner_has_kids', 'لا');
+await patch(u2.token, 'partner_want_kids', 'نعم');
+await patch(u2.token, 'marital_done', 1);
 await patch(u2.token, 'photo_done', 1);
 await patch(u2.token, 'selfie_done', 1);
 
