@@ -45,8 +45,8 @@
       </nav>
 
       <div class="header-actions">
-        <a class="btn btn-outline data-app-link" href="http://127.0.0.1:8081">تسجيل الدخول</a>
-        <a class="btn btn-gold data-app-link" href="http://127.0.0.1:8081">ابدأ الآن</a>
+        <a class="btn btn-outline data-app-link" href="https://wasla.family/app/">تسجيل الدخول</a>
+        <a class="btn btn-gold data-app-link" href="https://wasla.family/app/">ابدأ الآن</a>
       </div>
     </div>
   </header>
@@ -62,7 +62,7 @@
         </p>
 
         <div class="hero-actions reveal">
-          <a class="btn btn-gold btn-large data-app-link" href="http://127.0.0.1:8081">ابدأ رحلتك الآن</a>
+          <a class="btn btn-gold btn-large data-app-link" href="https://wasla.family/app/">ابدأ رحلتك الآن</a>
           <a class="btn btn-outline btn-large" href="/wasla.apk" download>تحميل تطبيق أندرويد</a>
           <a class="btn btn-ghost btn-large" href="#how">اكتشف كيف تعمل وصلــه</a>
         </div>
@@ -663,11 +663,11 @@
   </div>
 
   <script>
-    let API_BASE = 'http://127.0.0.1:4000';
-    let APP_URL = 'http://127.0.0.1:8081';
+    let API_BASE = 'https://api.wasla.family';
+    let APP_URL = 'https://wasla.family/app/';
     async function loadConfig() {
       try {
-        const res = await fetch('/config.json?v=9');
+        const res = await fetch('/config.json?v=10');
         if (res.ok) {
           const cfg = await res.json();
           if (cfg.apiBase) API_BASE = cfg.apiBase;
@@ -763,6 +763,6 @@
       setInterval(ping, 4 * 60 * 1000);
     }
   </script>
-  <script src="js/app.js?v=9"></script>
+  <script src="js/app.js?v=10"></script>
 </body>
 </html>
