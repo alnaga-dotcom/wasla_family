@@ -13,6 +13,9 @@ export const config = {
   otpExpiryMs: Number(process.env.WASLA_OTP_EXPIRY_MS || 5 * 60 * 1000),
   sessionTtlMs: Number(process.env.WASLA_SESSION_TTL_MS || 7 * 24 * 60 * 60 * 1000),
   adminKey: process.env.WASLA_ADMIN_KEY || 'dev-admin-key-change-me',
+  // Admin panel credentials (username/password). Defaults are dev-only; production refuses to boot with them.
+  adminUser: process.env.WASLA_ADMIN_USER || 'admin',
+  adminPass: process.env.WASLA_ADMIN_PASS || 'admin',
   // Public domain for production CORS and links (e.g., https://wasla.family)
   publicDomain: process.env.WASLA_PUBLIC_DOMAIN || '',
   // Allowed CORS origins in production (comma-separated). Empty/default = local dev wildcard.
@@ -54,6 +57,9 @@ export function validateConfig() {
     }
     if (!config.adminKey || config.adminKey === 'dev-admin-key-change-me') {
       throw new Error('WASLA_ADMIN_KEY must be set to a strong secret in production');
+    }
+    if (config.adminUser === 'admin' || config.adminPass === 'admin') {
+      throw new Error('WASLA_ADMIN_USER and WASLA_ADMIN_PASS must be changed from the dev defaults in production');
     }
     if (!config.publicDomain) {
       throw new Error('WASLA_PUBLIC_DOMAIN is required in production');

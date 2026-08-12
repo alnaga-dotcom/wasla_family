@@ -64,6 +64,7 @@ jobs:
           node scripts/settings-smoke.mjs
           node scripts/discovery-smoke.mjs
           node scripts/demo-smoke.mjs
+          node scripts/admin-login-smoke.mjs
           node scripts/admin-smoke.mjs
           node scripts/moderation-smoke.mjs
           node scripts/matching-smoke.mjs

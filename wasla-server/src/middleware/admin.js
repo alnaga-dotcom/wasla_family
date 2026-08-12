@@ -16,6 +16,14 @@ export const adminRequired = ah(async (req, res, next) => {
   }
 
   if (token) {
+    const adminSession = await db.prepare(
+      'SELECT token, expires_at FROM admin_sessions WHERE token = ?'
+    ).get(token);
+    if (adminSession && new Date(adminSession.expires_at + 'Z') > new Date()) {
+      req.adminContext = { adminPanel: true, role: 'super_admin' };
+      req.userId = null;
+      return next();
+    }
     const row = await db.prepare(
       'SELECT s.user_id, u.role FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token = ?'
     ).get(token);

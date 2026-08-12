@@ -53,6 +53,8 @@ const prod = spawn(process.execPath, ['src/server.js'], {
     PORT: '4100',
     WASLA_DEV_OTP: 'false',
     WASLA_ADMIN_KEY: 'prod-smoke-key-5f9c2b7d1a3e',
+    WASLA_ADMIN_USER: 'smoke-admin',
+    WASLA_ADMIN_PASS: 'smoke-pass-9f2a7d',
     WASLA_PUBLIC_DOMAIN: 'https://wasla.family',
     WASLA_CORS_ORIGINS: 'https://wasla.family,https://app.wasla.family',
     WASLA_OTP_PROVIDER: 'email',

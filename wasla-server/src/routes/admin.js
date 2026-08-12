@@ -1,7 +1,8 @@
 import { Router } from 'express';
-import { db } from '../db.js';
+import { randomBytes, timingSafeEqual } from 'node:crypto';
+import { db, nowIso } from '../db.js';
 import { ah } from '../async-handler.js';
-import { apiError } from '../validate.js';
+import { apiError, normalizePhone } from '../validate.js';
 import { adminRequired, permissionRequired } from '../middleware/admin.js';
 import { hasPermission } from '../permissions.js';
 import { getQueue, resolveItem, itemById, maskedText } from '../moderation.js';
@@ -14,6 +15,7 @@ import { listPermissions, listAllRoles, listAllPermissions, isStaff } from '../p
 import { runDesignReview } from '../design-review.js';
 import { getPendingPhotos, approvePhoto, rejectPhoto, photoUrl } from '../uploads.js';
 import { notify } from '../notify.js';
+import { config } from '../config.js';
 
 const router = Router();
 
@@ -35,6 +37,65 @@ async function logAction(actor, action, targetType, targetId, reason, meta) {
 function actorFrom(req) {
   return req.adminContext || { role: 'system' };
 }
+
+// --- Dedicated admin panel login (username/password, independent of user accounts) ---
+function safeEq(a, b) {
+  const ba = Buffer.from(String(a == null ? '' : a));
+  const bb = Buffer.from(String(b == null ? '' : b));
+  if (ba.length !== bb.length) return false;
+  return timingSafeEqual(ba, bb);
+}
+
+function bearerToken(req) {
+  const h = req.headers.authorization || '';
+  return h.startsWith('Bearer ') ? h.slice(7) : null;
+}
+
+const loginAttempts = new Map();
+function rateLimitLogin(ip) {
+  const now = Date.now();
+  let rec = loginAttempts.get(ip);
+  if (!rec || now > rec.resetAt) {
+    rec = { count: 0, resetAt: now + 5 * 60 * 1000 };
+    loginAttempts.set(ip, rec);
+  }
+  rec.count += 1;
+  return rec.count;
+}
+
+// POST /admin/login { username, password } → admin panel token (super_admin context)
+router.post('/login', ah(async (req, res) => {
+  const ip = req.ip || 'unknown';
+  if (rateLimitLogin(ip) > 5) {
+    return apiError(res, 429, 'ADMIN_LOGIN_LIMIT', 'محاولات كثيرة — انتظر قليلًا ثم أعد المحاولة');
+  }
+  const { username, password } = req.body || {};
+  if (!safeEq(username, config.adminUser) || !safeEq(password, config.adminPass)) {
+    return apiError(res, 401, 'ADMIN_BAD_CREDENTIALS', 'اسم المستخدم أو كلمة المرور غير صحيحة');
+  }
+  const token = randomBytes(32).toString('hex');
+  const expires = new Date(Date.now() + config.sessionTtlMs).toISOString().replace('T', ' ').slice(0, 19);
+  await db.prepare('INSERT INTO admin_sessions (token, expires_at) VALUES (?, ?)').run(token, expires);
+  res.json({ token, expiresAt: expires, role: 'super_admin' });
+}));
+
+// POST /admin/logout — revoke the current admin token
+router.post('/logout', ah(async (req, res) => {
+  const token = bearerToken(req);
+  if (token) await db.prepare('DELETE FROM admin_sessions WHERE token = ?').run(token);
+  res.json({ ok: true });
+}));
+
+// GET /admin/me — validate an admin panel token
+router.get('/me', ah(async (req, res) => {
+  const token = bearerToken(req);
+  if (!token) return apiError(res, 401, 'ADMIN_SESSION_INVALID', 'جلسة الأدمن غير صالحة');
+  const row = await db.prepare('SELECT token, expires_at FROM admin_sessions WHERE token = ?').get(token);
+  if (!row || new Date(row.expires_at + 'Z') <= new Date()) {
+    return apiError(res, 401, 'ADMIN_SESSION_INVALID', 'انتهت جلسة الأدمن — سجّل الدخول مجددًا');
+  }
+  res.json({ role: 'super_admin', expiresAt: row.expires_at });
+}));
 
 // GET /admin/roles
 router.get('/roles', adminRequired, ah(async (req, res) => {
@@ -87,15 +148,75 @@ router.post('/reports/:id/resolve', permissionRequired('users','restrict'), ah(a
   res.json({ ok: true, reportId: id, status });
 }));
 
-// GET /admin/users
+// GET /admin/users?status=&q=
 router.get('/users', permissionRequired('users','search'), ah(async (req, res) => {
+  const status = String(req.query.status || '').trim();
+  const q = String(req.query.q || '').trim();
+  const params = [];
+  let where = 'WHERE deleted_at IS NULL';
+  if (['active', 'pending', 'suspended'].includes(status)) { where += ' AND status = ?'; params.push(status); }
+  if (q) { where += ' AND (name LIKE ? OR phone LIKE ?)'; params.push(`%${q}%`, `%${q}%`); }
   const rows = await db.prepare(
     `SELECT id, name, phone, gender, status, role, created_at
-     FROM users
-     WHERE deleted_at IS NULL
+     FROM users ${where}
      ORDER BY id DESC LIMIT 200`
-  ).all();
+  ).all(...params);
   res.json({ users: rows });
+}));
+
+// POST /admin/users — create a member account directly (staff/test accounts, no OTP)
+router.post('/users', permissionRequired('users','manage'), ah(async (req, res) => {
+  const { name, phone, email, gender, role } = req.body || {};
+  if (!name || String(name).trim().length < 3 || String(name).trim().length > 60) {
+    return apiError(res, 422, 'INVALID_NAME', 'الاسم يجب أن يكون بين ٣ و٦٠ حرفًا', 'name');
+  }
+  const norm = normalizePhone(phone);
+  if (!norm) return apiError(res, 422, 'INVALID_PHONE', 'رقم هاتف غير صالح', 'phone');
+  if (gender !== 'male' && gender !== 'female') return apiError(res, 422, 'INVALID_GENDER', 'اختر الجنس', 'gender');
+  const allowedRoles = ['user', 'viewer', 'moderator', 'verification_officer', 'customer_support', 'rule_admin', 'subscription_admin', 'admin'];
+  if (!allowedRoles.includes(role)) return apiError(res, 422, 'INVALID_ROLE', 'دور غير صالح', 'role');
+  const emailNorm = String(email || '').trim() || null;
+  if (emailNorm && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailNorm)) {
+    return apiError(res, 422, 'INVALID_EMAIL', 'بريد إلكتروني غير صالح', 'email');
+  }
+  const existing = await db.prepare('SELECT id FROM users WHERE phone = ?').get(norm);
+  if (existing) return apiError(res, 409, 'ALREADY_REGISTERED', 'رقم الهاتف مسجل بالفعل', 'phone');
+  const r = await db.prepare(
+    `INSERT INTO users (name, phone, email, gender, status, role, email_verified_at, phone_verified_at)
+     VALUES (?, ?, ?, ?, 'active', ?, ?, ?)`
+  ).run(String(name).trim(), norm, emailNorm, gender, role, nowIso(), nowIso());
+  const userId = Number(r.lastInsertRowid);
+  await logAction(actorFrom(req), 'user_create', 'user', userId, 'أنشئ من لوحة الإدارة', { role, phone: norm });
+  res.status(201).json({ ok: true, userId, phone: norm });
+}));
+
+// GET /admin/violators — suspended members with their reports/moderation history
+router.get('/violators', permissionRequired('users','search'), ah(async (req, res) => {
+  const rows = await db.prepare(
+    `SELECT u.id, u.name, u.phone, u.gender, u.role, u.created_at,
+            (SELECT COUNT(*) FROM reports r WHERE r.reported_id = u.id) AS reports_count,
+            (SELECT COUNT(*) FROM moderation_items m WHERE m.user_id = u.id AND m.status = 'rejected') AS moderation_count,
+            (SELECT r2.reason FROM reports r2 WHERE r2.reported_id = u.id ORDER BY r2.created_at DESC LIMIT 1) AS last_reason
+     FROM users u
+     WHERE u.deleted_at IS NULL AND u.status = 'suspended'
+     ORDER BY u.id DESC LIMIT 200`
+  ).all();
+  res.json({ violators: rows });
+}));
+
+// POST /admin/reports/:id/ban — suspend the reported member + resolve the report
+router.post('/reports/:id/ban', permissionRequired('users','restrict'), ah(async (req, res) => {
+  const id = Number(req.params.id);
+  const { reason } = req.body || {};
+  const report = await db.prepare('SELECT id, reported_id, status FROM reports WHERE id = ?').get(id);
+  if (!report) return apiError(res, 404, 'REPORT_NOT_FOUND', 'البلاغ غير موجود');
+  if (!report.reported_id) return apiError(res, 422, 'INVALID_REPORT', 'بلاغ غير صالح');
+  const target = await db.prepare('SELECT id FROM users WHERE id = ? AND deleted_at IS NULL').get(report.reported_id);
+  if (!target) return apiError(res, 404, 'USER_NOT_FOUND', 'المستخدم غير موجود');
+  await db.prepare("UPDATE users SET status = 'suspended' WHERE id = ?").run(report.reported_id);
+  await db.prepare("UPDATE reports SET status = 'resolved' WHERE id = ?").run(id);
+  await logAction(actorFrom(req), 'user_ban_from_report', 'user', report.reported_id, reason || 'حظر من البلاغ', { reportId: id });
+  res.json({ ok: true, userId: report.reported_id, reportId: id, status: 'suspended' });
 }));
 
 // GET /admin/users/:id

@@ -27,10 +27,13 @@ async function loadConfig() {
 const state = {
   token: localStorage.getItem('wasla_token') || null,
   user: JSON.parse(localStorage.getItem('wasla_user') || 'null'),
+  adminToken: localStorage.getItem('wasla_admin_token') || null,
   phone: null,
   pendingGender: null,
   pendingName: null,
 };
+
+const isAdminPath = (path) => path.startsWith('/admin') || path.startsWith('/api/admin');
 
 const el = (id) => document.getElementById(id);
 
@@ -42,7 +45,9 @@ async function api(path, method = 'GET', body = null, _tries = 0) {
     method,
     headers: { 'Content-Type': 'application/json' },
   };
-  if (state.token) options.headers.Authorization = 'Bearer ' + state.token;
+  const adminPath = isAdminPath(path);
+  const authToken = adminPath && state.adminToken ? state.adminToken : state.token;
+  if (authToken) options.headers.Authorization = 'Bearer ' + authToken;
   if (body) options.body = JSON.stringify(body);
   try {
     const res = await fetch(url, options);
@@ -50,8 +55,9 @@ async function api(path, method = 'GET', body = null, _tries = 0) {
     if (!res.ok) throw { status: res.status, data };
     return data;
   } catch (err) {
-    if ((err.status === 401 || err.status === 403) && state.token) {
-      logout();
+    if ((err.status === 401 || err.status === 403) && authToken) {
+      if (adminPath && state.adminToken) adminLogout(false);
+      else logout();
       throw err;
     }
     if (!err.status && _tries < RETRY_DELAY_MS.length) {
@@ -231,6 +237,7 @@ function renderWelcome() {
         </ul>
         <button class="btn-primary" id="welcomeLogin">تسجيل الدخول</button>
         <button class="btn-ghost" id="welcomeRegister">إنشاء حساب جديد</button>
+        <p class="welcome-note"><a href="#" id="welcomeAdmin" style="font-size:12px;color:var(--muted)">لوحة الإدارة — دخول الأدمن</a></p>
         <p class="welcome-note">
           بتسجيلك أنت توافق على <a href="https://wasla.family/terms.html">الشروط</a> و
           <a href="https://wasla.family/privacy.html">سياسة الخصوصية</a>
@@ -240,6 +247,7 @@ function renderWelcome() {
   `;
   el('welcomeLogin').addEventListener('click', renderLogin);
   el('welcomeRegister').addEventListener('click', renderRegister);
+  el('welcomeAdmin').addEventListener('click', (e) => { e.preventDefault(); renderAdmin(); });
 }
 
 function renderLogin() {
@@ -259,11 +267,12 @@ function renderLogin() {
           <button class="btn-primary" id="loginBtn">إرسال رمز التحقق</button>
           <div id="error"></div>
         </div>
-        <p class="auth-switch">ليس لديك حساب؟ <a href="#" id="toRegister">سجّل الآن</a></p>
+        <p class="auth-switch">ليس لديك حساب؟ <a href="#" id="toRegister">سجّل الآن</a> · <a href="#" id="toAdmin">لوحة الإدارة</a></p>
       </div>
     </div>
   `;
   el('toRegister').addEventListener('click', (e) => { e.preventDefault(); renderRegister(); });
+  el('toAdmin').addEventListener('click', (e) => { e.preventDefault(); renderAdmin(); });
   el('loginBtn').addEventListener('click', async () => {
     const phone = el('phone').value.trim();
     if (!phone) { showError(el('error'), { field: true, message: 'أدخل رقم الهاتف' }); return; }
@@ -1191,17 +1200,73 @@ function adminCard(title, content) {
 
 let adminSection = 'dashboard';
 
+function adminLogout(fromServer = true) {
+  if (fromServer && state.adminToken) api('/admin/logout', 'POST').catch(() => {});
+  state.adminToken = null;
+  localStorage.removeItem('wasla_admin_token');
+  const nav = document.getElementById('nav');
+  if (nav) nav.classList.add('hidden');
+  renderWelcome();
+}
+
 async function renderAdmin() {
-  if (!isStaff(state.user?.role)) return renderProfile();
+  if (state.adminToken) return renderAdminConsole();
+  if (isStaff(state.user?.role)) return renderAdminConsole();
+  return renderAdminLogin();
+}
+
+function renderAdminLogin() {
+  const app = el('app');
+  app.innerHTML = `
+    <div class="auth-screen">
+      <header class="auth-hero">
+        ${brandHeader()}
+        <p class="auth-hero-tag">لوحة إدارة وصلــه — دخول الأدمن</p>
+      </header>
+      <div class="auth-body">
+        <div class="card auth-card">
+          <h1 class="auth-title">دخول الأدمن</h1>
+          <label>اسم المستخدم</label>
+          <input id="adminUser" type="text" autocomplete="username" />
+          <label>كلمة المرور</label>
+          <input id="adminPass" type="password" autocomplete="current-password" />
+          <button class="btn-primary" id="adminLoginBtn">دخول</button>
+          <div id="error"></div>
+        </div>
+        <p class="auth-switch"><a href="#" id="adminBack">رجوع</a></p>
+      </div>
+    </div>
+  `;
+  el('adminBack').addEventListener('click', (e) => { e.preventDefault(); renderWelcome(); });
+  el('adminLoginBtn').addEventListener('click', async () => {
+    const username = el('adminUser').value.trim();
+    const password = el('adminPass').value;
+    if (!username || !password) { showError(el('error'), { field: true, message: 'أدخل اسم المستخدم وكلمة المرور' }); return; }
+    try {
+      const data = await api('/admin/login', 'POST', { username, password });
+      state.adminToken = data.token;
+      localStorage.setItem('wasla_admin_token', data.token);
+      renderAdminConsole();
+    } catch (err) { showError(el('error'), err); }
+  });
+}
+
+async function renderAdminConsole() {
   const app = el('app');
   app.innerHTML = `
     <div class="card">
-      <h2>لوحة الإدارة</h2>
-      <p>الدور: ${state.user.role}</p>
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+        <div>
+          <h2>لوحة الإدارة</h2>
+          <p>الدور: super_admin — ${state.adminToken ? 'جلسة الأدمن' : 'جلسة العضو'}</p>
+        </div>
+        <button class="secondary" id="adminLogoutBtn">خروج</button>
+      </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
         <button class="secondary" data-admin="dashboard">نظرة عامة</button>
         <button class="secondary" data-admin="verification">التوثيق</button>
         <button class="secondary" data-admin="reports">البلاغات</button>
+        <button class="secondary" data-admin="violators">المخالفون</button>
         <button class="secondary" data-admin="moderation">الإشراف</button>
         <button class="secondary" data-admin="photos">الصور</button>
         <button class="secondary" data-admin="subscriptions">الاشتراكات</button>
@@ -1211,6 +1276,10 @@ async function renderAdmin() {
     </div>
     <div id="admin-content"></div>
   `;
+  el('adminLogoutBtn').addEventListener('click', () => {
+    if (state.adminToken) adminLogout();
+    else logout();
+  });
   app.querySelectorAll('button[data-admin]').forEach((btn) => {
     btn.addEventListener('click', () => { adminSection = btn.dataset.admin; renderAdminSection(); });
   });
@@ -1225,6 +1294,7 @@ async function renderAdminSection() {
     if (adminSection === 'dashboard') await renderAdminDashboard(container);
     else if (adminSection === 'verification') await renderAdminVerification(container);
     else if (adminSection === 'reports') await renderAdminReports(container);
+    else if (adminSection === 'violators') await renderAdminViolators(container);
     else if (adminSection === 'moderation') await renderAdminModeration(container);
     else if (adminSection === 'photos') await renderAdminPhotos(container);
     else if (adminSection === 'subscriptions') await renderAdminSubscriptions(container);
@@ -1347,13 +1417,52 @@ async function renderAdminReports(container) {
         <strong>#${r.id}</strong> — ${escapeHtml(r.reason || 'بدون سبب')}<br>
         <small>بواسطة ${r.reporter_name} ضد ${r.reported_name} — ${r.status}</small>
       </div>
-      ${r.status === 'pending' ? `<button class="secondary" data-action="resolve-report" data-id="${r.id}">حلّ</button>` : ''}
+      ${r.status === 'pending' ? `
+        <div>
+          <button class="secondary" data-action="resolve-report" data-id="${r.id}">حلّ</button>
+          <button class="danger" data-action="ban-report" data-id="${r.id}">حظر</button>
+        </div>
+      ` : ''}
     </div>
   `).join(''));
   container.querySelectorAll('button[data-action="resolve-report"]').forEach((btn) => {
     btn.addEventListener('click', async () => {
       try {
         await api(`/admin/reports/${btn.dataset.id}/resolve`, 'POST', { status: 'resolved', reason: 'تم الحل من لوحة الإدارة' });
+        renderAdminSection();
+      } catch (err) { showError(container, err); }
+    });
+  });
+  container.querySelectorAll('button[data-action="ban-report"]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const reason = window.prompt('سبب الحظر:', '') || null;
+      try {
+        await api(`/admin/reports/${btn.dataset.id}/ban`, 'POST', { reason });
+        renderAdminSection();
+      } catch (err) { showError(container, err); }
+    });
+  });
+}
+
+async function renderAdminViolators(container) {
+  const data = await api('/admin/violators');
+  const rows = data.violators || [];
+  if (rows.length === 0) { container.innerHTML = adminCard('المخالفون', '<p>لا يوجد أعضاء موقوفون.</p>'); return; }
+  container.innerHTML = adminCard('المخالفون', rows.map((v) => `
+    <div class="match-row">
+      <div>
+        <strong>${escapeHtml(v.name)}</strong> — ${v.role}<br>
+        <small>${v.phone} — موقوف · بلاغات ${v.reports_count} · رفض مراجعة ${v.moderation_count}${v.last_reason ? ' · آخر سبب: ' + escapeHtml(v.last_reason) : ''}</small>
+      </div>
+      <div>
+        <button class="secondary" data-action="unsuspend" data-id="${v.id}">تفعيل</button>
+      </div>
+    </div>
+  `).join(''));
+  container.querySelectorAll('button[data-action="unsuspend"]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      try {
+        await api(`/admin/users/${btn.dataset.id}/unsuspend`, 'POST', { reason: 'أُعيد تفعيله من لوحة الإدارة' });
         renderAdminSection();
       } catch (err) { showError(container, err); }
     });
@@ -1424,18 +1533,53 @@ async function renderAdminPhotos(container) {
 async function renderAdminUsers(container) {
   const data = await api('/admin/users');
   const rows = data.users || [];
-  container.innerHTML = adminCard('المستخدمين', rows.slice(0, 30).map((u) => `
-    <div class="match-row">
-      <div>
-        <strong>${escapeHtml(u.name)}</strong> — ${u.role}<br>
-        <small>${u.phone} — ${u.status}</small>
+  container.innerHTML = `
+    <div class="card" style="margin-bottom:12px">
+      <h3>إضافة عضو</h3>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px">
+        <input id="nuName" placeholder="الاسم" style="flex:1;min-width:120px" />
+        <input id="nuPhone" placeholder="01xxxxxxxxx" style="flex:1;min-width:120px" />
+        <select id="nuGender"><option value="male">ذكر</option><option value="female">أنثى</option></select>
+        <select id="nuRole">
+          <option value="user">عضو</option>
+          <option value="moderator">مشرف</option>
+          <option value="verification_officer">مسؤول توثيق</option>
+          <option value="customer_support">دعم عملاء</option>
+          <option value="subscription_admin">مسؤول اشتراكات</option>
+          <option value="admin">أدمن</option>
+        </select>
+        <input id="nuEmail" placeholder="البريد (اختياري)" style="flex:1;min-width:140px" />
+        <button class="btn-primary" id="nuCreate" style="width:auto">إنشاء</button>
       </div>
-      <div>
-        ${u.status === 'active' ? `<button class="danger" data-action="suspend" data-id="${u.id}">إيقاف</button>` : ''}
-        ${u.status === 'suspended' ? `<button class="secondary" data-action="unsuspend" data-id="${u.id}">تفعيل</button>` : ''}
-      </div>
+      <div id="nuErr"></div>
     </div>
-  `).join(''));
+    ${adminCard('المستخدمين', rows.slice(0, 30).map((u) => `
+      <div class="match-row">
+        <div>
+          <strong>${escapeHtml(u.name)}</strong> — ${u.role}<br>
+          <small>${u.phone} — ${u.status}</small>
+        </div>
+        <div>
+          ${u.status === 'active' ? `<button class="danger" data-action="suspend" data-id="${u.id}">إيقاف</button>` : ''}
+          ${u.status === 'suspended' ? `<button class="secondary" data-action="unsuspend" data-id="${u.id}">تفعيل</button>` : ''}
+        </div>
+      </div>
+    `).join(''))}
+  `;
+  el('nuCreate').addEventListener('click', async () => {
+    const payload = {
+      name: el('nuName').value.trim(),
+      phone: el('nuPhone').value.trim(),
+      gender: el('nuGender').value,
+      role: el('nuRole').value,
+      email: el('nuEmail').value.trim() || undefined,
+    };
+    if (!payload.name || !payload.phone) { showError(el('nuErr'), { field: true, message: 'أدخل الاسم ورقم الهاتف' }); return; }
+    try {
+      await api('/admin/users', 'POST', payload);
+      renderAdminSection();
+    } catch (err) { showError(el('nuErr'), err); }
+  });
   container.querySelectorAll('button[data-action="suspend"], button[data-action="unsuspend"]').forEach((btn) => {
     btn.addEventListener('click', async () => {
       const action = btn.dataset.action;

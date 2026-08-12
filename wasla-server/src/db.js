@@ -107,6 +107,16 @@ const SCHEMA = [
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
   `,
   `
+  CREATE TABLE IF NOT EXISTS admin_sessions (
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    token VARCHAR(64) NOT NULL,
+    expires_at DATETIME NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_admin_session_token (token)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  `,
+  `
   CREATE TABLE IF NOT EXISTS profile_fields (
     user_id INT UNSIGNED NOT NULL,
     field_key VARCHAR(100) NOT NULL,
@@ -587,7 +597,7 @@ async function seedRolePermissions() {
     { role: 'admin', perms: [
       ['dashboard','view'], ['queues','view'], ['content','review'],
       ['content','override'], ['verification','review'], ['verification','approve'],
-      ['users','search'], ['users','view_sensitive'], ['users','restrict'],
+      ['users','search'], ['users','view_sensitive'], ['users','restrict'], ['users','manage'],
       ['refunds','handle'], ['refunds','approve'], ['plans','manage'],
       ['master_data','manage'], ['rules','manage'], ['sensitive_rules','review'],
       ['workflows','manage'], ['config','manage'], ['audit','view'],
@@ -595,7 +605,7 @@ async function seedRolePermissions() {
     { role: 'super_admin', perms: [
       ['dashboard','view'], ['queues','view'], ['content','review'],
       ['content','override'], ['verification','review'], ['verification','approve'],
-      ['users','search'], ['users','view_sensitive'], ['users','restrict'],
+      ['users','search'], ['users','view_sensitive'], ['users','restrict'], ['users','manage'],
       ['refunds','handle'], ['refunds','approve'], ['plans','manage'],
       ['master_data','manage'], ['rules','manage'], ['sensitive_rules','review'],
       ['workflows','manage'], ['config','manage'], ['roles','manage'],
