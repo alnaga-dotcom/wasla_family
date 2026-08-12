@@ -511,12 +511,17 @@ async function runPostLogin() {
   try {
     const me = await api('/api/profile/me');
     const fields = me.fields || {};
-    if (!fields.marital_done) return renderMaritalOnboarding();
+    if (!fields.marital_done) {
+      document.getElementById('nav').classList.add('hidden');
+      return renderMaritalOnboarding();
+    }
   } catch (e) { /* continue to app */ }
+  document.getElementById('nav').classList.remove('hidden');
   setPage('discovery');
 }
 
 function renderMaritalOnboarding() {
+  document.getElementById('nav').classList.add('hidden');
   const app = el('app');
   app.innerHTML = `
     <div class="auth-screen">
@@ -609,7 +614,10 @@ function renderAuthPrompt() {
     </div>
   `;
   el('authNow').addEventListener('click', renderAuthNow);
-  el('authLater').addEventListener('click', () => setPage('discovery'));
+  el('authLater').addEventListener('click', () => {
+    document.getElementById('nav').classList.remove('hidden');
+    setPage('discovery');
+  });
 }
 
 function renderAuthNow() {
@@ -662,7 +670,10 @@ function renderAuthNow() {
     btn.disabled = false;
     btn.textContent = 'طلب التوثيق';
   });
-  el('authDone').addEventListener('click', () => setPage('discovery'));
+  el('authDone').addEventListener('click', () => {
+    document.getElementById('nav').classList.remove('hidden');
+    setPage('discovery');
+  });
 }
 
 async function renderProfile() {
