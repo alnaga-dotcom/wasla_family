@@ -950,6 +950,7 @@ async function renderDiscovery() {
       <div class="card candidate">
         ${avatar ? `<img src="${avatar}" style="width:120px;height:120px;object-fit:cover;border-radius:50%;margin:0 auto 8px;display:block" alt="صورة رمزية" />` : ''}
         <h2>${c.name || 'عضو'}</h2>
+        ${c.isDemo ? `<p class="badge badge-demo">حساب تجريبي</p>` : ''}
         <p class="badge badge-${c.matchLevel}">توافق ${c.matchScore}%</p>
         <p>${c.reasons?.join(' · ') || ''}</p>
         <div class="actions">
@@ -979,7 +980,7 @@ async function renderMutuals() {
     app.innerHTML = mutuals.map((m) => `
       <div class="card match-row">
         <div>
-          <strong>${m.name}</strong>
+          <strong>${m.name}</strong>${m.isDemo ? ` <span class="badge badge-demo" style="font-size:10px">حساب تجريبي</span>` : ''}
           <p class="badge badge-${m.level}">${m.score}%</p>
         </div>
         <button class="secondary" onclick="setPage('messages');state.chatUserId=${m.userId}">راسل</button>

@@ -159,6 +159,7 @@ button:disabled { opacity: 0.6; cursor: not-allowed; }
 .badge-high { background: #E8F5E9; color: var(--success); }
 .badge-medium { background: #FFF3E0; color: #F57C00; }
 .badge-low { background: #FFEBEE; color: var(--danger); }
+.badge-demo { background: #E8EAF6; color: #3F51B5; border: 1px dashed #3F51B5; }
 
 /* --- Brand auth screens --- */
 .auth-screen { max-width: 480px; margin: 0 auto; }

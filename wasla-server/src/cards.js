@@ -18,10 +18,10 @@ export async function profileFields(userId) {
 
 // بطاقة عامة آمنة للاكتشاف والبحث — بلا اتصال ولا إحداثيات ولا حساس (Wasla_19/21).
 export async function publicCard(userId) {
-  const u = await db.prepare('SELECT id, name, gender, verified_at, deleted_at FROM users WHERE id = ?').get(userId);
+  const u = await db.prepare('SELECT id, name, gender, verified_at, deleted_at, is_demo FROM users WHERE id = ?').get(userId);
   if (!u || u.deleted_at) return null;
   const fields = await profileFields(userId);
-  const card = { userId: u.id, name: u.name, gender: u.gender, completion: completionFor(fields).pct };
+  const card = { userId: u.id, name: u.name, gender: u.gender, completion: completionFor(fields).pct, isDemo: u.is_demo === 1 };
   CARD_KEYS.forEach((k) => {
     if (k === 'health') return; // حساس — لا يُعرض أبدًا في نتائج الاكتشاف/البحث
     if (fields[k] !== undefined) card[k] = fields[k];

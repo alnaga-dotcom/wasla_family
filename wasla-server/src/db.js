@@ -80,6 +80,7 @@ const SCHEMA = [
     verified_at DATETIME,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     deleted_at DATETIME,
+    is_demo TINYINT NOT NULL DEFAULT 0,
     PRIMARY KEY (id),
     UNIQUE KEY uq_users_phone (phone)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -515,6 +516,7 @@ async function columnExists(table, column) {
 async function migrate() {
   const usersCols = [
     ['deleted_at', 'DATETIME'],
+    ['is_demo', 'TINYINT NOT NULL DEFAULT 0'],
     ['trust_level', 'INT NOT NULL DEFAULT 1'],
     ['email', 'VARCHAR(255)'],
     ['push_token', 'TEXT'],

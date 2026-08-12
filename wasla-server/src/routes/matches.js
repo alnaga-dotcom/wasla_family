@@ -36,7 +36,7 @@ router.get('/:id/reasons', authRequired, ah(async (req, res) => {
 }));
 
 async function targetUserOr404(res, userId) {
-  const u = await db.prepare('SELECT id, status, deleted_at FROM users WHERE id = ?').get(userId);
+  const u = await db.prepare('SELECT id, status, deleted_at, is_demo FROM users WHERE id = ?').get(userId);
   if (!u) return apiError(res, 404, 'USER_NOT_FOUND', 'المستخدم غير موجود');
   if (u.status !== 'active' || u.deleted_at) return apiError(res, 404, 'USER_NOT_FOUND', 'المستخدم غير موجود');
   return u;
@@ -58,6 +58,14 @@ router.post('/:id/like', authRequired, ah(async (req, res) => {
   }
   const u = await targetUserOr404(res, target);
   if (!u) return;
+
+  // حسابات العرض التجريبية: لا تبادل إعجابات بين حساب حقيقي وحساب تجريبي (Wasla demo)
+  if (like) {
+    const me = await db.prepare('SELECT is_demo FROM users WHERE id = ?').get(req.userId);
+    if (me && (me.is_demo === 1) !== (u.is_demo === 1)) {
+      return apiError(res, 403, 'DEMO_INTERACTION_BLOCKED', 'الحسابات التجريبية للعرض فقط — لا يمكن إرسال إعجاب من أو لحساب تجريبي', 'like');
+    }
+  }
 
   // Free-tier daily like quota (Wasla_17)
   const existing = await db.prepare('SELECT action FROM match_actions WHERE actor_id = ? AND target_id = ?').get(req.userId, target);
@@ -117,6 +125,7 @@ router.get('/mutual', authRequired, ah(async (req, res) => {
       name: card.name,
       gender: card.gender,
       trustLevel: card.trustLevel,
+      isDemo: card.isDemo,
       matchedAt: r.matched_at,
       matchScore: score.score,
       matchLevel: score.level,
