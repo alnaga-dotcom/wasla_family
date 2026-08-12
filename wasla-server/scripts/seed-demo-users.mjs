@@ -3,6 +3,7 @@
 //   node scripts/seed-demo-users.mjs
 // Overrides:
 //   WASLA_DEMO_EMAIL_TEMPLATE = 'ostazi.academy+demo{n}@gmail.com' (default; {n} = 1..10)
+import 'dotenv/config';
 import { db } from '../src/db.js';
 
 const TEMPLATE = process.env.WASLA_DEMO_EMAIL_TEMPLATE || 'ostazi.academy+demo{n}@gmail.com';
